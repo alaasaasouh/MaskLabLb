@@ -1,0 +1,11 @@
+.local/
+tests/.browser-profile/
+tests/*.png
+MASKLAB-site.zip
+node_modules/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+Thumbs.db
