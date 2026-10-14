@@ -8,7 +8,7 @@
     product: { id: 'masklab-balaclava', name: 'MASKLAB Balaclava', unitPrice: 1900, currency: 'USD' },
     pricing: { bundles: { 1: 1900, 2: 3500, 3: 4900 }, mixedDesigns: true, deliveryFee: 300 },
     // Add only confirmed policies. null displays an honest contact-to-confirm message.
-    details: { sizing: null, care: null, delivery: null, payment: null, returns: null, privacy: null, terms: null },
+    details: { sizing: 'One universal size. Designed to adapt comfortably to every wearer.', care: null, delivery: null, payment: null, returns: null, privacy: null, terms: null },
     designs: [
       { id: 'granpa-no-mercy', name: 'Granpa No Mercy' },
       { id: 'the-last-don', name: 'The Last Don' },
