@@ -15,9 +15,11 @@
     const items = sanitizeCart(cart);
     const quantity = items.reduce((sum, item) => sum + item.quantity, 0);
     const subtotal = quantity * config.product.unitPrice;
-    const needsQuote = quantity > 3 && config.pricing.aboveThree === 'quote';
-    const total = needsQuote ? null : (config.pricing.bundles[quantity] ?? subtotal);
-    return { quantity, subtotal, total, savings: total === null ? null : subtotal - total, needsQuote };
+    const needsQuote = false;
+    // Keep the repeating per-mask rate exact until rounding the order to cents.
+    const total = quantity >= 3 ? Math.round(quantity * config.pricing.bundles[3] / 3) : (config.pricing.bundles[quantity] ?? subtotal);
+    const delivery = quantity ? config.pricing.deliveryFee : 0;
+    return { quantity, subtotal, total, delivery, grandTotal: total + delivery, savings: subtotal - total, needsQuote };
   }
   function buildMessage(cart, customer) {
     const items = sanitizeCart(cart);
@@ -31,14 +33,20 @@
     lines.push('*ORDER SUMMARY*', `Total masks: ${price.quantity}`, `Subtotal before bundle savings: ${money(price.subtotal)}`,
       `Bundle savings: ${price.needsQuote ? 'To confirm (order above 3 masks)' : money(price.savings)}`,
       `Merchandise total: ${price.needsQuote ? 'Please quote this order' : money(price.total)}`,
-      'Delivery fee: To be confirmed through WhatsApp.', '', '*CUSTOMER DETAILS*',
+      `Delivery fee: ${money(price.delivery)}`, `Order total: ${money(price.grandTotal)}`, '', '*CUSTOMER DETAILS*',
       `Name: ${customer.name.trim()}`, `Phone: ${customer.phone.trim()}`, `City / area: ${customer.area.trim()}`, `Delivery address: ${customer.address.trim()}`);
     if (customer.building?.trim()) lines.push(`Building / apartment: ${customer.building.trim()}`);
     if (customer.notes?.trim()) lines.push(`Notes: ${customer.notes.trim()}`);
-    lines.push('', 'Please confirm availability, the final delivery charge, and payment method. Thank you!');
+    lines.push('', 'Please confirm availability and payment method. Thank you!');
     return lines.join('\n');
   }
-  const api = { money, sanitizeCart, priceCart, buildMessage };
+  function buildEmail(cart, customer) {
+    const body = buildMessage(cart, customer).replace(/^\*([^\n]+)\*$/gm, '$1');
+    const subject = 'MASKLAB order';
+    const url = 'mailto:' + config.email + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+    return { subject, body, url };
+  }
+  const api = { money, sanitizeCart, priceCart, buildMessage, buildEmail };
   root.MasklabCommerce = api;
   if (typeof module !== 'undefined') module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

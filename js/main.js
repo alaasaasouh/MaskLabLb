@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const config = window.MASKLAB;
-  const { money, sanitizeCart, priceCart, buildMessage } = window.MasklabCommerce;
+  const { money, sanitizeCart, priceCart, buildMessage, buildEmail } = window.MasklabCommerce;
   const $ = selector => document.querySelector(selector);
   const $$ = selector => [...document.querySelectorAll(selector)];
   const icon = name => `<svg aria-hidden="true"><use href="#i-${name}"/></svg>`;
@@ -77,7 +77,7 @@
 
   function renderQuickView() {
     const design = config.designs.find(d => d.id === quickId);
-    $('#quick-content').innerHTML = `<div class="quick-layout"><div class="quick-image"><img src="${design.image}" width="1068" height="1472" alt="${design.name} balaclava"></div><div class="quick-info"><p class="eyebrow">YOUR NEXT PERSONALITY</p><h2 id="quick-title">${design.name}</h2><p class="quick-price">${money(config.product.unitPrice)}</p><p class="quick-subtitle">One MASKLAB balaclava. A whole new attitude. Goggles and other accessories are not included.</p><label class="design-label">CHOOSE YOUR DESIGN<select class="design-select" id="quick-design">${config.designs.map(d => `<option value="${d.id}" ${d.id === quickId ? 'selected' : ''}>${d.name}</option>`).join('')}</select></label><p class="quick-bundle">Mix any 2 for ${money(config.pricing.bundles[2])} · any 3 for ${money(config.pricing.bundles[3])}</p><div class="quick-buy"><div class="quantity-control"><button data-quick-delta="-1" aria-label="Decrease quantity" ${quickQuantity === 1 ? 'disabled' : ''}>−</button><output id="quick-quantity" aria-live="polite">${quickQuantity}</output><button data-quick-delta="1" aria-label="Increase quantity" ${quickQuantity === 99 ? 'disabled' : ''}>+</button></div><button class="button button-blue" id="quick-add">ADD TO BAG ${icon('bag')}</button></div><details><summary>Sizing & care</summary><p id="quick-care"></p></details><details><summary>Delivery & ordering</summary><p>Prepare your order here and send it through WhatsApp. Delivery fees, availability and payment are confirmed by Masklab.</p></details></div></div>`;
+    $('#quick-content').innerHTML = `<div class="quick-layout"><div class="quick-image"><img src="${design.image}" width="1068" height="1472" alt="${design.name} balaclava"></div><div class="quick-info"><p class="eyebrow">YOUR NEXT PERSONALITY</p><h2 id="quick-title">${design.name}</h2><p class="quick-price">${money(config.product.unitPrice)}</p><p class="quick-subtitle">One MASKLAB balaclava. A whole new attitude. Goggles and other accessories are not included.</p><label class="design-label">CHOOSE YOUR DESIGN<select class="design-select" id="quick-design">${config.designs.map(d => `<option value="${d.id}" ${d.id === quickId ? 'selected' : ''}>${d.name}</option>`).join('')}</select></label><p class="quick-bundle">Mix any 2 for ${money(config.pricing.bundles[2])} · any 3 for ${money(config.pricing.bundles[3])}</p><div class="quick-buy"><div class="quantity-control"><button data-quick-delta="-1" aria-label="Decrease quantity" ${quickQuantity === 1 ? 'disabled' : ''}>−</button><output id="quick-quantity" aria-live="polite">${quickQuantity}</output><button data-quick-delta="1" aria-label="Increase quantity" ${quickQuantity === 99 ? 'disabled' : ''}>+</button></div><button class="button button-blue" id="quick-add">ADD TO BAG ${icon('bag')}</button></div><details><summary>Sizing & care</summary><p id="quick-care"></p></details><details><summary>Delivery & ordering</summary><p>Prepare your order here and send it through WhatsApp or email. Delivery is ${money(config.pricing.deliveryFee)} per order, included in your order total. Availability and payment are confirmed by Masklab.</p></details></div></div>`;
     $('#quick-care').textContent = [config.details.sizing || 'Contact Masklab to confirm fit and sizing before ordering.', config.details.care || 'Ask the team for washing and care instructions.'].join(' ');
   }
   $('#quick-content').addEventListener('change', event => {
@@ -103,6 +103,10 @@
     try { localStorage.setItem(storageKey, JSON.stringify(cart)); } catch { notify('Your bag works, but this browser cannot save it after closing.'); }
     renderCart();
     $('#whatsapp-fallback').hidden = true;
+    $('#email-fallback').hidden = true;
+    $('#email-message').value = '';
+    $('#email-link').removeAttribute('href');
+    $('#email-copy-status').textContent = '';
     $('#whatsapp-link').removeAttribute('href');
   }
   function addToCart(id, quantity) {
@@ -117,7 +121,7 @@
     notify(added ? `${design.name} added to your bag${added > 1 ? ` × ${added}` : ''}.` : 'Maximum 99 of each design. Contact Masklab for larger orders.');
   }
   function summaryMarkup(price) {
-    return `<div class="summary-row"><span>Subtotal (${price.quantity} ${price.quantity === 1 ? 'mask' : 'masks'})</span><span>${money(price.subtotal)}</span></div><div class="summary-row savings"><span>Bundle savings</span><span>${price.needsQuote ? 'To confirm' : `−${money(price.savings)}`}</span></div><div class="summary-row total"><span>Merchandise total</span><span>${price.needsQuote ? 'To confirm' : money(price.total)}</span></div>${price.needsQuote ? '<p class="quote-note">More than three masks? Request your bundle quote through WhatsApp. The subtotal above is before any offer.</p>' : ''}<p class="delivery-note">Delivery fees will be confirmed through WhatsApp.</p>`;
+    return `<div class="summary-row"><span>Subtotal (${price.quantity} ${price.quantity === 1 ? 'mask' : 'masks'})</span><span>${money(price.subtotal)}</span></div><div class="summary-row savings"><span>Bundle savings</span><span>&minus;${money(price.savings)}</span></div><div class="summary-row"><span>Merchandise total</span><span>${money(price.total)}</span></div><div class="summary-row"><span>Delivery</span><span>${money(price.delivery)}</span></div><div class="summary-row total"><span>Order total</span><span>${money(price.grandTotal)}</span></div>`;
   }
   function renderCart() {
     const price = priceCart(cart);
@@ -134,8 +138,8 @@
       const design = config.designs.find(d => d.id === item.id);
       return `<article class="cart-item" data-cart-id="${item.id}"><img src="${design.thumbnail}" alt="${design.name}" width="78" height="107"><div><div class="cart-item-top"><h3>${design.name}</h3><button class="remove-item" data-remove="${item.id}" aria-label="Remove ${design.name}">Remove</button></div><p class="cart-item-price">${money(config.product.unitPrice)} / mask</p><div class="cart-item-bottom"><div class="quantity-control"><button data-delta="-1" data-id="${item.id}" aria-label="Decrease ${design.name} quantity">−</button><output aria-label="${design.name} quantity">${item.quantity}</output><button data-delta="1" data-id="${item.id}" aria-label="Increase ${design.name} quantity" ${item.quantity === 99 ? 'disabled' : ''}>+</button></div><div><span class="line-price">${money(item.quantity * config.product.unitPrice)}</span><span class="line-label">before bundle savings</span></div></div></div></article>`;
     }).join('');
-    const progress = price.quantity === 1 ? `Add another face to get 2 for ${money(config.pricing.bundles[2])}.` : price.quantity === 2 ? `One more personality? Get 3 for ${money(config.pricing.bundles[3])}.` : price.quantity === 3 ? `Your 3-mask bundle saves you ${money(price.savings)}.` : 'Your crew deserves a bundle. Ask us for a quote.';
-    $('#cart-summary').innerHTML = `<p class="bundle-progress">${progress}</p>${summaryMarkup(price)}<button class="button button-blue cart-checkout" id="start-checkout">${price.needsQuote ? 'REQUEST QUOTE VIA WHATSAPP' : 'CHECKOUT VIA WHATSAPP'} ${icon('arrow')}</button><button class="continue-shopping" data-continue>Continue shopping</button>`;
+    const progress = price.quantity === 1 ? `Add another face to get 2 for ${money(config.pricing.bundles[2])}.` : price.quantity === 2 ? `One more personality? Get 3 for ${money(config.pricing.bundles[3])}.` : `Your ${price.quantity}-mask bundle saves you ${money(price.savings)}.`;
+    $('#cart-summary').innerHTML = `<p class="bundle-progress">${progress}</p>${summaryMarkup(price)}<button class="button button-blue cart-checkout" id="start-checkout">${price.needsQuote ? 'REQUEST QUOTE VIA WHATSAPP' : 'CHECKOUT'} ${icon('arrow')}</button><button class="continue-shopping" data-continue>Continue shopping</button>`;
   }
   renderCart();
   $('[data-open-cart]').addEventListener('click', event => openDialog($('#cart-drawer'), event.currentTarget));
@@ -176,6 +180,10 @@
       notify('Your bag changed in another tab. Please review it before checkout.');
     }
     $('#whatsapp-fallback').hidden = true;
+    $('#email-fallback').hidden = true;
+    $('#email-message').value = '';
+    $('#email-link').removeAttribute('href');
+    $('#email-copy-status').textContent = '';
     $('#whatsapp-link').removeAttribute('href');
   });
 
@@ -183,6 +191,10 @@
   form.addEventListener('input', event => {
     if (event.target.setCustomValidity) event.target.setCustomValidity('');
     $('#whatsapp-fallback').hidden = true;
+    $('#email-fallback').hidden = true;
+    $('#email-message').value = '';
+    $('#email-link').removeAttribute('href');
+    $('#email-copy-status').textContent = '';
     $('#whatsapp-link').removeAttribute('href');
   });
   form.addEventListener('submit', event => {
@@ -196,11 +208,35 @@
     const validPhone = /^(?:\+961|00961)(?:0?[1-9]\d{6,7})$/.test(phone) || /^0?\d{7,8}$/.test(phone) || /^\+[1-9]\d{7,14}$/.test(phone);
     if (!validPhone) form.elements.phone.setCustomValidity('Enter a Lebanese phone number or an international number with + country code.');
     if (!form.reportValidity()) return;
+    $('#email-fallback').hidden = true;
+    $('#whatsapp-fallback').hidden = true;
+    if (event.submitter?.value === 'email') {
+      const email = buildEmail(cart, customer);
+      $('#email-message').value = email.body;
+      $('#email-link').href = email.url;
+      $('#email-recipient').textContent = config.email;
+      $('#email-recipient').href = 'mailto:' + config.email;
+      $('#email-copy-status').textContent = '';
+      $('#email-fallback').hidden = false;
+      window.location.href = email.url;
+      return;
+    }
     const url = `https://wa.me/${config.whatsapp}?text=${encodeURIComponent(buildMessage(cart, customer))}`;
     $('#whatsapp-link').href = url;
     $('#whatsapp-fallback').hidden = false;
     window.open(url, '_blank', 'noopener,noreferrer');
     // Do not clear the bag or report a confirmed order: only the customer can send it.
+  });
+
+  $('#copy-email').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText($('#email-message').value);
+      $('#email-copy-status').textContent = 'Copied. Paste into an email and tap Send.';
+    } catch {
+      $('#email-message').focus();
+      $('#email-message').select();
+      $('#email-copy-status').textContent = 'Select and copy the message above, then paste it into your email.';
+    }
   });
 
   $('#bundle-grid').innerHTML = [1, 2, 3].map(quantity => {
@@ -210,17 +246,17 @@
   }).join('');
 
   const policies = {
-    delivery: { title: 'Delivery information', copy: config.details.delivery || 'Delivery coverage, fees and timing are confirmed directly by Masklab through WhatsApp. Share your city and full address with your order so the team can confirm the details. A published delivery policy will be added here once provided.' },
+    delivery: { title: 'Delivery information', copy: config.details.delivery || `Delivery is a flat ${money(config.pricing.deliveryFee)} per order and is included in your order total. Enter your city and full delivery address at checkout. Coverage and timing details will be added once available.` },
     returns: { title: 'Returns & exchanges', copy: config.details.returns || 'Masklab’s returns and exchanges policy will be added here once provided. Please contact the team on WhatsApp to confirm the applicable conditions before ordering, or for help with an item you received.' },
-    privacy: { title: 'Privacy information', copy: config.details.privacy || 'This storefront saves only your selected designs and quantities in your browser to keep your bag between visits. Your name, phone number and delivery details are not saved in browser storage or sent to a website backend. When you choose to continue, your details are included in a WhatsApp message link. You still need to send the message in WhatsApp. WhatsApp handles information under its own privacy terms. Masklab’s full business privacy statement will be added when supplied.' },
-    terms: { title: 'Ordering information', copy: config.details.terms || 'Choose your designs, review your bag, and add your contact and delivery details. The website prepares a WhatsApp message for you to send. Masklab then confirms availability, delivery charges and payment arrangements. Orders above three masks require a bundle quote. Opening WhatsApp is not an order confirmation. Masklab’s full terms of sale will be added once supplied.' }
+    privacy: { title: 'Privacy information', copy: config.details.privacy || 'This storefront saves only your selected designs and quantities in your browser to keep your bag between visits. Your name, phone number and delivery details are not saved in browser storage or sent to a website backend. When you choose to continue, your details are included in a WhatsApp message link. You still need to send the message in your chosen app. Your messaging or email provider handles information under its own privacy terms. Masklab’s full business privacy statement will be added when supplied.' },
+    terms: { title: 'Ordering information', copy: config.details.terms || 'Choose your designs, review your bag, and add your contact and delivery details. The website prepares an order message for you to send through WhatsApp or email. Masklab then confirms availability and payment arrangements. Orders of three or more use the same per-mask rate as the three-mask bundle, with the order total rounded to cents. Preparing a message is not an order confirmation. Masklab’s full terms of sale will be added once supplied.' }
   };
   const faqs = [
     ['What is a Masklab balaclava?', 'A streetwear balaclava with personality. Choose from 11 expressive animal prints and bold faces—one base product, eleven different designs.'],
-    ['Can I mix different designs in a bundle?', `Yes. Mix any two designs for ${money(config.pricing.bundles[2])}, or any three for ${money(config.pricing.bundles[3])}. Savings apply automatically in your bag. For more than three masks, ask Masklab for a bundle quote.`],
-    ['How do I place an order?', 'Add your favorite faces to the bag, enter your delivery details, and continue to WhatsApp. Tap Send to share your prepared order. The Masklab team confirms availability, delivery and payment with you directly.'],
+    ['Can I mix different designs in a bundle?', `Yes. Mix any two designs for ${money(config.pricing.bundles[2])}, or any three for ${money(config.pricing.bundles[3])}. Savings apply automatically in your bag. For three or more masks, the $49 / 3 per-mask rate applies automatically; the order total is rounded to cents.`],
+    ['How do I place an order?', 'Add your favorite faces to the bag, enter your delivery details, and choose WhatsApp or email. Tap Send in your chosen app to share your prepared order. The Masklab team confirms availability and payment with you directly.'],
     ['What about sizing and washing?', [config.details.sizing, config.details.care].filter(Boolean).join(' ') || 'Contact Masklab on WhatsApp for confirmed sizing, fit and washing instructions before ordering. These details will be added here when provided.'],
-    ['Where do you deliver, and how much is delivery?', config.details.delivery || 'Delivery coverage, cost and timing are confirmed through WhatsApp for your address. No delivery fee is included in the merchandise total shown on this site.'],
+    ['Where do you deliver, and how much is delivery?', config.details.delivery || `Delivery is a flat ${money(config.pricing.deliveryFee)} per order, included in the order total shown in your bag and at checkout. Coverage and timing details will be added once available.`],
     ['How do payment, returns and exchanges work?', [config.details.payment, config.details.returns].filter(Boolean).join(' ') || 'Please confirm payment arrangements and returns or exchange conditions directly with Masklab on WhatsApp before placing your order. The full policies will be added once provided.']
   ];
   faqs.forEach(([question, answer]) => {
