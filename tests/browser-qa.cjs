@@ -10,8 +10,17 @@ const screenshotDirectory = path.join(__dirname, '..', '.local', 'qa');
 fs.mkdirSync(screenshotDirectory, { recursive: true });
 const delay = ms => new Promise(r => setTimeout(r, ms));
 let browser, server, socket;
+const orderEmails = [];
+const testOrderHandler = require('../server/orders.cjs').createOrderHandler({
+  env:{BREVO_API_KEY:'test-only',ORDER_FROM_EMAIL:'sender@example.com',ORDER_TO_EMAIL:'owner@example.com',ORDER_ALLOWED_ORIGINS:'http://127.0.0.1:4173'},
+  fetchImpl:async (url, options) => {
+    orderEmails.push(JSON.parse(options.body));
+    await delay(150);
+    return {ok:true,status:201,json:async()=>({messageIds:['test-customer','test-owner']})};
+  }
+});
 (async () => {
-  server = http.createServer(require('../preview.cjs'));
+  server = http.createServer((req,res)=>new URL(req.url,'http://localhost').pathname === '/api/order' ? testOrderHandler(req,res) : require('../preview.cjs')(req,res));
   await new Promise(r => server.listen(4173, '127.0.0.1', r));
   browser = spawn(chromePath, ['--headless=new','--no-sandbox','--disable-gpu','--remote-debugging-port=9333','--remote-allow-origins=*',`--user-data-dir=${path.join(__dirname,'.browser-profile')}`,'about:blank'], {windowsHide:true,stdio:'ignore'});
   let target;
@@ -44,11 +53,14 @@ let browser, server, socket;
   assert.ok(await evaluate('document.querySelector("#cart-summary").textContent.includes("$35.00")'));
   await evaluate(`document.querySelector('[data-id=bark-vader][data-delta="1"]').click()`);
   assert.ok(await evaluate('document.querySelector("#cart-summary .total").textContent.includes("$52.00")'));
+  assert.ok(await evaluate('document.querySelector("#cart-body").textContent.includes("$16.333")'));
+  assert.equal(await evaluate('document.querySelector("#cart-drawer").open'),true);
   await shot('desktop-bag.png');
   await evaluate('document.querySelector("[data-remove=clowbreaker]").click()');
   assert.equal(await evaluate('document.querySelectorAll(".cart-item").length'),1);
   assert.ok(await evaluate('document.querySelector("#cart-summary .total").textContent.includes("$38.00")'));
   await evaluate('location.reload()');await delay(650);
+  for(let attempt=0;attempt<40;attempt++){if(await evaluate('document.querySelector(".cart-count")?.textContent')==='2')break;await delay(150);}
   assert.equal(await evaluate('document.querySelector(".cart-count").textContent'),'2');
   await evaluate('document.querySelector("[data-open-cart]").click(); document.querySelector("#start-checkout").click()');
   assert.equal(await evaluate('document.querySelector("#checkout-form").checkValidity()'),false);
@@ -85,6 +97,34 @@ let browser, server, socket;
   await evaluate('document.querySelector("#quick-design").value="ginger-ninja";document.querySelector("#quick-design").dispatchEvent(new Event("change",{bubbles:true}));document.querySelector("#quick-add").click()');
   assert.ok(await evaluate('document.querySelector("#cart-body").textContent.includes("Ginger Ninja")'));
   await shot('mobile-bag.png');await evaluate('document.querySelector("#cart-drawer").close();document.querySelector("#shop").scrollIntoView()');await delay(700);await shot('mobile-collection.png');
+  await evaluate('document.querySelector("[data-open-cart]").click();document.querySelector("#start-checkout").click()');
+  await evaluate(`(()=>{const f=document.querySelector('#checkout-form');const values={name:'Order QA',email:'',phone:'+961 76 123 456',area:'Beirut',address:'Sample street'};Object.entries(values).forEach(([key,value])=>f.elements[key].value=value);document.querySelector('#place-order').click()})()`);
+  assert.equal(await evaluate('document.querySelector("[name=email]").validity.valid'),false);
+  assert.equal(orderEmails.length,0);
+  // WhatsApp remains usable after a missing-email validation error.
+  await evaluate('document.querySelector("[value=whatsapp]").click()');
+  assert.equal(await evaluate('document.querySelector("#whatsapp-fallback").hidden'),false);
+  await evaluate(`document.querySelector('[name=email]').value='customer@example.com';document.querySelector('[name=email]').dispatchEvent(new Event('input',{bubbles:true}));window.originalFetch=window.fetch;window.fetch=async()=>new Response(JSON.stringify({error:'Please retry with the same details.'}),{status:503,headers:{'Content-Type':'application/json'}});document.querySelector('#place-order').click()`);
+  await delay(100);
+  assert.equal(await evaluate('document.querySelector("#order-success").hidden'),true);
+  assert.equal(await evaluate('document.querySelector(".cart-count").textContent'),'5');
+  assert.ok(await evaluate('document.querySelector("#order-status").textContent.includes("retry")'));
+  assert.equal(await evaluate('document.querySelector("#checkout-fields").disabled'),false);
+  await shot('mobile-order-error.png');
+  await evaluate('window.fetch=window.originalFetch;document.querySelector("#place-order").click();document.querySelector("#place-order").click()');
+  assert.equal(await evaluate('document.querySelector("#checkout-fields").disabled'),true);
+  await delay(400);
+  assert.equal(orderEmails.length,1,'Double click sends only one batch');
+  assert.equal(orderEmails[0].messageVersions.length,2);
+  assert.equal(orderEmails[0].messageVersions[0].to[0].email,'customer@example.com');
+  assert.equal(orderEmails[0].messageVersions[1].to[0].email,'owner@example.com');
+  assert.equal(await evaluate('document.querySelector("#order-success").hidden'),false);
+  assert.equal(await evaluate('document.querySelector(".cart-count").textContent'),'0');
+  assert.ok(await evaluate('document.querySelector("#order-confirmation").textContent.includes("$84.67")'));
+  assert.equal(await evaluate('location.protocol'),'http:','No email app is opened');
+  assert.ok(!(await evaluate('JSON.stringify(localStorage)+JSON.stringify(sessionStorage)')).includes('customer@example.com'));
+  await shot('mobile-order-success.png');
+  await evaluate('document.querySelector("#checkout-dialog").close()');
   await evaluate('document.querySelectorAll("img").forEach(img=>{img.loading="eager"})');await delay(800);
   assert.deepEqual(await evaluate('[...document.images].filter(i=>!i.complete||!i.naturalWidth).map(i=>i.src)'),[]);
   assert.deepEqual(errors,[]);assert.deepEqual(failedRequests,[]);

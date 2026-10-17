@@ -1,0 +1,10 @@
+.local/
+.git/
+.agents/
+.codex/
+tests/
+.env*
+AGENTS.md
+README.md
+hero.jpeg
+mid.jpeg

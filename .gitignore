@@ -3,6 +3,8 @@ tests/.browser-profile/
 tests/*.png
 MASKLAB-site.zip
 node_modules/
+public/
+.vercel/
 .env
 .env.*
 !.env.example

@@ -3,10 +3,12 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const root = __dirname;
+const orderHandler = require('./server/orders.cjs').createOrderHandler();
 const types = {'.html':'text/html; charset=utf-8','.css':'text/css','.js':'text/javascript','.jpeg':'image/jpeg','.png':'image/png','.webp':'image/webp','.ttf':'font/ttf'};
 function handler(req, res) {
   let requested;
   try { requested = decodeURIComponent(new URL(req.url, 'http://localhost').pathname); } catch { res.writeHead(400).end(); return; }
+  if (requested === '/api/order') { orderHandler(req, res); return; }
   const file = path.resolve(root, '.' + (requested === '/' ? '/index.html' : requested));
   if (!file.startsWith(root + path.sep) || (!['/index.html','/style.css'].includes(requested) && requested !== '/' && !requested.startsWith('/assets/') && !requested.startsWith('/js/'))) { res.writeHead(404).end('Not found'); return; }
   fs.readFile(file, (error, data) => {

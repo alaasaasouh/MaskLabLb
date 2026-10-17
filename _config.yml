@@ -1,0 +1,12 @@
+# GitHub Pages (branch/Jekyll publishing): expose storefront files only.
+exclude:
+  - AGENTS.md
+  - README.md
+  - tests
+  - server
+  - api
+  - scripts
+  - preview.cjs
+  - vercel.json
+  - hero.jpeg
+  - mid.jpeg

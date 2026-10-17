@@ -6,9 +6,11 @@
     whatsapp: '96176723303',
     instagram: 'https://www.instagram.com/masklab.lb/',
     product: { id: 'masklab-balaclava', name: 'MASKLAB Balaclava', unitPrice: 1900, currency: 'USD' },
+    // GitHub Pages uses the Vercel function; Vercel and local previews use their own origin.
+    orderEndpoint: typeof location !== 'undefined' && location.hostname === 'alaasaasouh.github.io' ? 'https://masklablb.vercel.app/api/order' : '/api/order',
     pricing: { bundles: { 1: 1900, 2: 3500, 3: 4900 }, mixedDesigns: true, deliveryFee: 300 },
     // Add only confirmed policies. null displays an honest contact-to-confirm message.
-    details: { sizing: 'One universal size. Designed to adapt comfortably to every wearer.', care: null, delivery: null, payment: null, returns: null, privacy: null, terms: null },
+    details: { sizing: 'One universal size. Designed to adapt comfortably to every wearer.', care: null, delivery: null, payment: 'Payment is cash on delivery. No online payment is collected.', returns: null, privacy: null, terms: null },
     designs: [
       { id: 'granpa-no-mercy', name: 'Granpa No Mercy' },
       { id: 'the-last-don', name: 'The Last Don' },

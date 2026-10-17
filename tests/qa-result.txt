@@ -1,5 +1,4 @@
-Passed Chromium and installed Google Chrome browser QA at 320, 375, 390, 768, 1024 and 1440 px on 13 October 2026.
-All shopping, persistence, mixed-bundle pricing, quote-only larger orders, checkout validation, dialog focus and WhatsApp preparation checks passed.
-No missing images, JavaScript errors, HTTP errors or horizontal page overflow were detected.
-No customer information was stored in localStorage. No WhatsApp message was sent.
-Real iOS Safari and physical-device WhatsApp handoff were not tested.
+Passed local Chrome desktop/mobile QA at 320, 375, 390, 768, 1024 and 1440 px on 17 October 2026.
+Pricing, mixed bundles, WhatsApp ordering, direct COD checkout, required customer email, failed-send recovery, double-click prevention and success clearing passed.
+Server checks cover validation, server-calculated totals, separate email recipients, escaping, retry deduplication, origin checks, limits and provider failures.
+Email provider was mocked. No real email was sent. Live Brevo credentials, delivery and physical-device testing remain outstanding.

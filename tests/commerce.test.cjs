@@ -24,13 +24,11 @@ assert.ok(buildMessage([{id:'bark-vader',quantity:4}],customer).includes('Mercha
 assert.throws(() => buildMessage([],customer));
 console.log('PASS: 11 unique designs; empty, 1–3, mixed and >3 pricing; malformed carts; Unicode WhatsApp message.');
 
-const { buildEmail } = require('../js/commerce.js');
-const email = buildEmail(mixed, customer);
-const emailUrl = new URL(email.url);
-assert.equal(emailUrl.protocol, 'mailto:');
-assert.equal(emailUrl.pathname, 'alaasaasouh8@gmail.com');
-assert.equal(emailUrl.searchParams.get('subject'), 'MASKLAB order');
-assert.equal(emailUrl.searchParams.get('body'), email.body);
-for (const value of [customer.name, customer.notes, 'Delivery fee: $3.00', 'Order total: $52.00']) assert.ok(email.body.includes(value));
-assert.throws(() => buildEmail([], customer));
-console.log('PASS: email recipient, encoded Unicode customer details, delivery and order total.');
+const { pricedItems, unitRate } = require('../js/commerce.js');
+for (let quantity = 1; quantity <= 20; quantity++) {
+  const cart = [{id:'clowbreaker',quantity:1},{id:'bark-vader',quantity:quantity-1}];
+  assert.equal(pricedItems(cart).reduce((sum,item)=>sum+item.total,0),priceCart(cart).total);
+}
+assert.equal(unitRate(mixed), '$16.333 approx.');
+assert.equal(unitRate([{id:'clowbreaker',quantity:2}]), '$17.50');
+assert.ok(buildMessage(mixed,customer).includes('Applied price per mask: $16.333 approx.'));

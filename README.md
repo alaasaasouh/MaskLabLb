@@ -1,6 +1,6 @@
 # MASKLAB storefront
 
-Custom responsive storefront in HTML, CSS and vanilla JavaScript. No installation, framework, backend, payment gateway or build step is needed.
+Custom responsive storefront in HTML, CSS and vanilla JavaScript. The catalog uses no framework. Direct cash-on-delivery orders use a Vercel function and Brevo; WhatsApp ordering remains browser-only.
 
 ## Open the website
 
@@ -42,15 +42,15 @@ The announcement, collection toolbar, product prices, bundles, savings, cart and
 
 ## Checkout and privacy
 
-The website prepares an encoded WhatsApp message. The customer must tap Send in WhatsApp; Masklab manually confirms the order. The cart is deliberately retained after opening WhatsApp.
+Checkout offers Order on WhatsApp or Place order. WhatsApp opens a prepared message and retains the bag. Place order submits to the Vercel function, which recalculates prices and requests separate customer and merchant emails through Brevo. Payment is cash on delivery. The bag clears only after the service accepts the email batch. Availability and delivery still need merchant confirmation.
 
-Only design IDs and quantities are stored in localStorage. Checkout contact and address fields remain in page memory and are included in the WhatsApp URL only after the user submits. They are not stored in localStorage, sent to analytics, or submitted to a website backend. No tracking tools are included. Fonts are served locally.
+Only design IDs and quantities are stored in localStorage. A random retry identifier and timestamp are saved in sessionStorage. Customer details stay in page memory until submission, then go to the order service and Brevo for direct orders, or into the prepared WhatsApp URL. The browser does not store those details. Emails and provider logs retain order details; there is no separate order database or inventory system. Fonts are served locally.
 
 ## Deployment
 
 Upload only `index.html`, `style.css`, `js/`, and `assets/` to the document root of client-owned static hosting. The local `.local/releases/MASKLAB-site.zip` handover contains those deployable files. Conventional static hosts and GitHub Pages are compatible; publish only these storefront files, rather than the whole repository. Keep tests, instructions, original source assets and internal handover documents out of the public website.
 
-Source repository: https://github.com/alaasaasouh/MaskLabLb. Uploading source does not launch the website. No domain or website hosting account was supplied. Before launch, confirm merchant policies, delivery, sizing, care, product claims and product availability. Add the real canonical site URL and change `og:image` to an absolute URL under that domain for reliable social previews. The project owner's detailed handover remains local in `.local/HANDOVER.md`.
+Source repository: https://github.com/alaasaasouh/MaskLabLb. The main branch is connected to Vercel at https://masklablb.vercel.app and GitHub Pages. Vercel builds only storefront files into public/ and deploys api/order.js separately. GitHub Pages uses the Vercel endpoint for direct orders. Before launch, confirm merchant policies, delivery, sizing, care, product claims and product availability. Add the real canonical site URL and change `og:image` to an absolute URL under that domain for reliable social previews. The project owner's detailed handover remains local in `.local/HANDOVER.md`.
 
 For future changes, edit and verify locally, summarize the result, and ask the owner before pushing to GitHub. An explicit request to push the current changes supplies that approval.
 
@@ -73,6 +73,28 @@ Knewave, Barlow Condensed and DM Sans are included under their open font license
 
 Your video-to-website skill remains unused, as requested. There are no frame sequences, videos or scroll-scrub dependencies. Native CSS and IntersectionObserver provide reduced-motion-aware animation.
 
-## Email ordering
+## Direct order email setup
 
-Checkout offers WhatsApp or email using the same validated customer details and pricing. The email recipient is configured in `js/products.js` as `email`. Email checkout opens a prepared mailto message and provides a copyable order message if no email app is configured. Customers must send the message themselves; no email is sent by the website and no customer details are stored.
+1. Create a free Brevo account and verify a sender named MASKLAB under Settings > Senders, Domains & Dedicated IPs > Senders.
+2. Create a regular API key under Settings > SMTP & API > API Keys & MCP. Do not use an SMTP key or convert it to an MCP key.
+3. In the Vercel project Settings > Environment Variables, add these for Production:
+   - BREVO_API_KEY: the private Brevo API key.
+   - ORDER_FROM_EMAIL: the exact verified sender email.
+   - ORDER_TO_EMAIL: the merchant inbox; defaults to the existing address in js/products.js if omitted.
+   - ORDER_ALLOWED_ORIGINS: optional override, comma-separated exact origins. Defaults to https://masklablb.vercel.app,https://alaasaasouh.github.io.
+4. Redeploy after saving environment variables. Never commit keys or paste them into browser JavaScript.
+5. Place a clearly labelled test order using your own customer email. Confirm that both emails arrive and inspect Brevo transactional logs if delivery fails.
+
+Brevo free usage is currently 300 emails/day, approximately 150 two-email orders. A free Gmail sender can be verified, but Brevo rewrites the sending domain; use a custom authenticated domain when available. Live sending remains unverified until account activation, sender verification and credentials are complete. API acceptance is not a guarantee of inbox delivery.
+
+The endpoint validates details and product quantities, computes all prices server-side, rejects unapproved origins, and has basic per-instance throttling and a honeypot. Configure hosting firewall controls for public traffic; per-instance throttling is not a global rate limit. Brevo handles duplicate email batches using a payload-bound UUID. Retries are accepted for ten minutes, within Brevo's documented deduplication window. After an ambiguous or expired attempt, check email/contact Masklab before placing a new order. Order confirmations contain a reference, items, delivery address, prices and unpaid COD status.
+
+For local API testing, copy .env.example to ignored .env, fill it privately, and run node --env-file=.env preview.cjs on Node 22 or later. Do not use live credentials for automated tests.
+
+Additional checks:
+
+- node tests/orders.test.cjs ? validation, pricing, email recipients, duplicate retries and provider failures using a fake provider.
+- node tests/browser-qa.cjs ? desktop/mobile checkout, email validation, failed submission, double clicks and confirmation using a fake provider; no real emails are sent.
+- node scripts/build-static.cjs ? build the public storefront allowlist for Vercel.
+
+References: [Brevo API keys](https://help.brevo.com/hc/en-us/articles/209467485-Create-and-manage-your-API-keys), [Brevo email API](https://developers.brevo.com/reference/send-transac-email), [batch idempotency](https://developers.brevo.com/docs/heterogenous-versions-batch-emails).
