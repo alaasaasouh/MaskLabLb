@@ -6,5 +6,6 @@ tests/
 .env*
 AGENTS.md
 README.md
-hero.jpeg
-mid.jpeg
+# Exclude only root duplicates; keep the storefront campaign images.
+/hero.jpeg
+/mid.jpeg
