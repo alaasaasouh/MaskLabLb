@@ -15,12 +15,12 @@ function invoke(handler, data, overrides = {}) {
 (async () => {
   const sample = body();
   const order = validateOrder({...sample,total:1},now);
-  assert.equal(order.price.grandTotal,5200);
+  assert.equal(order.price.grandTotal,5300);
   const payload = emailPayload(order,env);
   assert.equal(payload.messageVersions.length,2);
   assert.equal(payload.messageVersions[0].to[0].email,'customer@example.com');
   assert.equal(payload.messageVersions[1].to[0].email,'owner@example.com');
-  assert.ok(payload.messageVersions.every(v=>v.textContent.includes('Total due on delivery: $52.00')));
+  assert.ok(payload.messageVersions.every(v=>v.textContent.includes('Total due on delivery: $53.00')));
   assert.ok(payload.messageVersions.every(v=>v.textContent.includes('Cash on delivery (unpaid)')));
   assert.ok(payload.messageVersions.every(v=>!v.htmlContent.includes('<img')));
   assert.ok(payload.messageVersions[0].htmlContent.includes('&lt;img'));
@@ -39,7 +39,7 @@ function invoke(handler, data, overrides = {}) {
     return {ok:true,status:201,json:async()=>({messageIds:['customer-id','owner-id']})};
   }});
   const first = await invoke(handler,sample);
-  assert.equal(first.status,200);assert.equal(first.body.grandTotal,5200);
+  assert.equal(first.status,200);assert.equal(first.body.grandTotal,5300);
   assert.equal(first.headers['Cache-Control'],'no-store');
   assert.equal((await invoke(handler,sample)).body.orderId,first.body.orderId);
   assert.equal(seen.size,1,'Retries produce one email batch');

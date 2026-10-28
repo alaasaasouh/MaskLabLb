@@ -52,7 +52,7 @@ const testOrderHandler = require('../server/orders.cjs').createOrderHandler({
   await evaluate('document.querySelector("[data-add=clowbreaker]").click();document.querySelector("[data-add=bark-vader]").click();document.querySelector("[data-open-cart]").click()');
   assert.ok(await evaluate('document.querySelector("#cart-summary").textContent.includes("$35.00")'));
   await evaluate(`document.querySelector('[data-id=bark-vader][data-delta="1"]').click()`);
-  assert.ok(await evaluate('document.querySelector("#cart-summary .total").textContent.includes("$52.00")'));
+  assert.ok(await evaluate('document.querySelector("#cart-summary .total").textContent.includes("$53.00")'));
   assert.ok(await evaluate('document.querySelector("#cart-body").textContent.includes("$16.333")'));
   assert.equal(await evaluate('document.querySelector("#cart-drawer").open'),true);
   await shot('desktop-bag.png');
@@ -69,7 +69,7 @@ const testOrderHandler = require('../server/orders.cjs').createOrderHandler({
   assert.equal(await evaluate('typeof window.testWhatsappURL'),'undefined');
   await evaluate('document.querySelector("[name=phone]").dispatchEvent(new Event("input",{bubbles:true}))');
   await evaluate(`(()=>{const f=document.querySelector('#checkout-form');const values={name:'QA & Test',phone:'+961 76 123 456',area:'Beirut',address:'Sample street',notes:'<img src=x onerror=alert(1)>'};Object.entries(values).forEach(([key,value])=>f.elements[key].value=value);window.open=(url)=>{window.testWhatsappURL=url;return null};f.requestSubmit()})()`);
-  const url=await evaluate('window.testWhatsappURL');assert.ok(url.startsWith('https://wa.me/96176723303?text='));assert.ok(decodeURIComponent(url).includes('Bark Vader × 2'));assert.ok(decodeURIComponent(url).includes('Merchandise total: $35.00'));
+  const url=await evaluate('window.testWhatsappURL');assert.ok(url.startsWith('https://wa.me/96181374508?text='));assert.ok(decodeURIComponent(url).includes('Bark Vader × 2'));assert.ok(decodeURIComponent(url).includes('Merchandise total: $35.00'));
   assert.equal(await evaluate('document.querySelector("#whatsapp-fallback").hidden'),false);
   assert.ok(!(await evaluate('JSON.stringify(localStorage)')).includes('QA & Test'));
   assert.equal(await evaluate('document.querySelector(".cart-count").textContent'),'2');

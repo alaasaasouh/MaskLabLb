@@ -33,7 +33,7 @@ Edit `js/products.js`:
 - Edit `designs[].name` for display names. Keep `id` stable to preserve saved carts.
 - Replace each design’s `.webp` and `-480.webp` files in `assets/products/`, retaining the full shape and proportions. Original JPEGs are archived locally in `.local/source-assets/products/` and are not part of the repository.
 - Prices are integer US cents: `1900` means $19.00. Set `product.unitPrice` and `pricing.bundles` together.
-- Delivery is a flat $3 per nonempty order (`pricing.deliveryFee: 300`), added after bundle savings and included in cart, checkout, and WhatsApp order totals.
+- Delivery is $4 (`pricing.deliveryFee: 400`), waived when the merchandise total after bundle savings is above $65 (`pricing.freeDeliveryAbove: 6500`). It is included in cart, checkout, and WhatsApp order totals.
 - The confirmed offers are 1/$19, 2/$35, 3/$49, including mixed designs.
 - Orders of three or more use the exact $49 / 3 per-mask rate ($16.333333...), rounding the final merchandise total to cents. Four masks cost $65.33; five cost $81.67; six cost $98.00.
 - Add approved text to `details.sizing`, `care`, `delivery`, `payment`, `returns`, `privacy`, and `terms`. Leave missing values `null` to retain contact-to-confirm information.

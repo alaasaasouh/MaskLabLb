@@ -18,7 +18,7 @@
     const needsQuote = false;
     // Keep the repeating per-mask rate exact until rounding the order to cents.
     const total = quantity >= 3 ? Math.round(quantity * config.pricing.bundles[3] / 3) : (config.pricing.bundles[quantity] ?? subtotal);
-    const delivery = quantity ? config.pricing.deliveryFee : 0;
+    const delivery = quantity && total <= config.pricing.freeDeliveryAbove ? config.pricing.deliveryFee : 0;
     return { quantity, subtotal, total, delivery, grandTotal: total + delivery, savings: subtotal - total, needsQuote };
   }
   function pricedItems(cart) {
