@@ -41,6 +41,9 @@ const testOrderHandler = require('../server/orders.cjs').createOrderHandler({
   if(await evaluate('document.querySelectorAll(".product-card").length')!==11)console.log({errors,failedRequests,state:await evaluate('({url:location.href,title:document.title,body:document.body.innerText.slice(0,300)})')});
   assert.equal(await evaluate('document.querySelectorAll(".product-card").length'),11);
   assert.equal(await evaluate('document.fonts.check("16px Knewave")'),true);
+  assert.equal(await evaluate('document.querySelector(".drop-headline").textContent'),'BE FIRST. STAND OUT.');
+  assert.equal(await evaluate('document.querySelector("[data-add] span").textContent'),'PRE-ORDER');
+  assert.equal(await evaluate('document.querySelector("#place-order").textContent.trim()'),'PLACE PRE-ORDER');
   await shot('desktop-home.png');
   await evaluate('document.querySelectorAll(".reveal").forEach(e=>e.classList.remove("waiting"));document.querySelectorAll("img").forEach(img=>{img.loading="eager"})');
   await evaluate('Promise.all([...document.images].map(i=>i.decode().catch(()=>{})))');
@@ -58,7 +61,7 @@ const testOrderHandler = require('../server/orders.cjs').createOrderHandler({
   await shot('desktop-bag.png');
   await evaluate('document.querySelector("[data-remove=clowbreaker]").click()');
   assert.equal(await evaluate('document.querySelectorAll(".cart-item").length'),1);
-  assert.ok(await evaluate('document.querySelector("#cart-summary .total").textContent.includes("$38.00")'));
+  assert.ok(await evaluate('document.querySelector("#cart-summary .total").textContent.includes("$39.00")'));
   await evaluate('location.reload()');await delay(650);
   for(let attempt=0;attempt<40;attempt++){if(await evaluate('document.querySelector(".cart-count")?.textContent')==='2')break;await delay(150);}
   assert.equal(await evaluate('document.querySelector(".cart-count").textContent'),'2');
@@ -73,11 +76,17 @@ const testOrderHandler = require('../server/orders.cjs').createOrderHandler({
   assert.equal(await evaluate('document.querySelector("#whatsapp-fallback").hidden'),false);
   assert.ok(!(await evaluate('JSON.stringify(localStorage)')).includes('QA & Test'));
   assert.equal(await evaluate('document.querySelector(".cart-count").textContent'),'2');
+  assert.equal(await evaluate('document.querySelector("#checkout-review del")'),null);
+  assert.ok(await evaluate('document.querySelector("#checkout-review .delivery-offer").textContent.includes("above $65.00")'));
   await shot('desktop-checkout.png');
   await evaluate(`document.querySelector('#checkout-dialog').close();document.querySelector('[data-open-cart]').click();document.querySelector('[data-id=bark-vader][data-delta="1"]').click();document.querySelector('[data-id=bark-vader][data-delta="1"]').click()`);
-  assert.ok(await evaluate('document.querySelector("#cart-summary .total").textContent.includes("$68.33")'));
+  assert.ok(await evaluate('document.querySelector("#cart-summary .total").textContent.includes("$65.33")'));
+  assert.equal(await evaluate('document.querySelector("#cart-summary .delivery-free del").textContent'),'Original delivery fee: $4.00');
   await evaluate('document.querySelector("#start-checkout").click()');
-  assert.ok(await evaluate('document.querySelector("#checkout-review .total").textContent.includes("$68.33")'));
+  assert.ok(await evaluate('document.querySelector("#checkout-review .total").textContent.includes("$65.33")'));
+  assert.equal(await evaluate('document.querySelector("#checkout-review .delivery-free del").textContent'),'Original delivery fee: $4.00');
+  assert.ok(await evaluate('document.querySelector("#checkout-review .delivery-free strong").textContent.includes("FREE")'));
+  await shot('desktop-free-delivery.png');
   await evaluate('document.querySelector("#checkout-form").requestSubmit()');
   assert.ok(decodeURIComponent(await evaluate('window.testWhatsappURL')).includes('Merchandise total: $65.33'));
   await evaluate('document.querySelector("#checkout-dialog").close()');
@@ -120,7 +129,7 @@ const testOrderHandler = require('../server/orders.cjs').createOrderHandler({
   assert.equal(orderEmails[0].messageVersions[1].to[0].email,'owner@example.com');
   assert.equal(await evaluate('document.querySelector("#order-success").hidden'),false);
   assert.equal(await evaluate('document.querySelector(".cart-count").textContent'),'0');
-  assert.ok(await evaluate('document.querySelector("#order-confirmation").textContent.includes("$84.67")'));
+  assert.ok(await evaluate('document.querySelector("#order-confirmation").textContent.includes("$81.67")'));
   assert.equal(await evaluate('location.protocol'),'http:','No email app is opened');
   assert.ok(!(await evaluate('JSON.stringify(localStorage)+JSON.stringify(sessionStorage)')).includes('customer@example.com'));
   await shot('mobile-order-success.png');

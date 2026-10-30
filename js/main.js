@@ -58,7 +58,7 @@
           <span class="quick-label">TAKE A CLOSER LOOK ↗</span>
         </button>
         <div class="product-info"><div><h3>${design.name}</h3><p>MASKLAB BALACLAVA</p></div><span class="price">${money(config.product.unitPrice)}</span></div>
-        <button class="add-button" data-add="${design.id}" aria-label="Add ${design.name} to bag"><span>ADD TO BAG</span>${icon('bag')}</button>
+        <button class="add-button" data-add="${design.id}" aria-label="Pre-order ${design.name}"><span>PRE-ORDER</span>${icon('bag')}</button>
       </article>`).join('') + `<article class="editorial-tile"><div><p class="eyebrow">11 FACES. ALL YOU.</p><h3>CAN'T<br>PICK<br>JUST ONE?</h3><p>Good. You don't have to.<br>Mix your favorites and save.</p></div><span class="tile-star" aria-hidden="true">✳</span><a class="text-link" href="#bundles">MEET THE BUNDLES ${icon('arrow')}</a></article>`;
   }
   renderProducts();
@@ -71,14 +71,14 @@
       openDialog($('#cart-drawer'), add);
       add.classList.add('added');
       add.querySelector('span').textContent = 'ADDED TO BAG ✓';
-      setTimeout(() => { add.classList.remove('added'); add.querySelector('span').textContent = 'ADD TO BAG'; }, 1600);
+      setTimeout(() => { add.classList.remove('added'); add.querySelector('span').textContent = 'PRE-ORDER'; }, 1600);
     }
     if (quick) { quickId = quick.dataset.quick; quickQuantity = 1; renderQuickView(); openDialog($('#quick-view'), quick); }
   });
 
   function renderQuickView() {
     const design = config.designs.find(d => d.id === quickId);
-    $('#quick-content').innerHTML = `<div class="quick-layout"><div class="quick-image"><img src="${design.image}" width="1068" height="1472" alt="${design.name} balaclava"></div><div class="quick-info"><p class="eyebrow">YOUR NEXT PERSONALITY</p><h2 id="quick-title">${design.name}</h2><p class="quick-price">${money(config.product.unitPrice)}</p><p class="quick-subtitle">One MASKLAB balaclava. A whole new attitude. Goggles and other accessories are not included.</p><label class="design-label">CHOOSE YOUR DESIGN<select class="design-select" id="quick-design">${config.designs.map(d => `<option value="${d.id}" ${d.id === quickId ? 'selected' : ''}>${d.name}</option>`).join('')}</select></label><p class="quick-bundle">Mix any 2 for ${money(config.pricing.bundles[2])} · any 3 for ${money(config.pricing.bundles[3])}</p><div class="quick-buy"><div class="quantity-control"><button data-quick-delta="-1" aria-label="Decrease quantity" ${quickQuantity === 1 ? 'disabled' : ''}>−</button><output id="quick-quantity" aria-live="polite">${quickQuantity}</output><button data-quick-delta="1" aria-label="Increase quantity" ${quickQuantity === 99 ? 'disabled' : ''}>+</button></div><button class="button button-blue" id="quick-add">ADD TO BAG ${icon('bag')}</button></div><details><summary>Sizing & care</summary><p id="quick-care"></p></details><details><summary>Delivery & ordering</summary><p>Order on WhatsApp or place your order here with cash on delivery. Delivery is ${money(config.pricing.deliveryFee)}, with free delivery on orders above ${money(config.pricing.freeDeliveryAbove)}. Any delivery fee is included in your order total. Availability and delivery are confirmed by Masklab.</p></details></div></div>`;
+    $('#quick-content').innerHTML = `<div class="quick-layout"><div class="quick-image"><img src="${design.image}" width="1068" height="1472" alt="${design.name} balaclava"></div><div class="quick-info"><p class="eyebrow">YOUR NEXT PERSONALITY</p><h2 id="quick-title">${design.name}</h2><p class="quick-price">${money(config.product.unitPrice)}</p><p class="quick-subtitle">One MASKLAB balaclava. A whole new attitude. Goggles and other accessories are not included.</p><label class="design-label">CHOOSE YOUR DESIGN<select class="design-select" id="quick-design">${config.designs.map(d => `<option value="${d.id}" ${d.id === quickId ? 'selected' : ''}>${d.name}</option>`).join('')}</select></label><p class="quick-bundle">Mix any 2 for ${money(config.pricing.bundles[2])} · any 3 for ${money(config.pricing.bundles[3])}</p><div class="quick-buy"><div class="quantity-control"><button data-quick-delta="-1" aria-label="Decrease quantity" ${quickQuantity === 1 ? 'disabled' : ''}>−</button><output id="quick-quantity" aria-live="polite">${quickQuantity}</output><button data-quick-delta="1" aria-label="Increase quantity" ${quickQuantity === 99 ? 'disabled' : ''}>+</button></div><button class="button button-blue" id="quick-add">PRE-ORDER ${icon('bag')}</button></div><details><summary>Sizing & care</summary><p id="quick-care"></p></details><details><summary>Delivery & ordering</summary><p>Pre-order on WhatsApp or place your pre-order here with cash on delivery. Delivery is ${money(config.pricing.deliveryFee)}, with free delivery on orders above ${money(config.pricing.freeDeliveryAbove)}. Any delivery fee is included in your order total. Availability and delivery are confirmed by Masklab.</p></details></div></div>`;
     $('#quick-care').textContent = [config.details.sizing || 'Sizing information will be available soon.', config.details.care || 'Care instructions will be available soon.'].join('\n\n');
   }
   $('#quick-content').addEventListener('change', event => {
@@ -118,7 +118,14 @@
     notify(added ? `${design.name} added to your bag${added > 1 ? ` × ${added}` : ''}.` : 'Maximum 99 of each design. Contact Masklab for larger orders.');
   }
   function summaryMarkup(price) {
-    return `<div class="summary-row"><span>Subtotal (${price.quantity} ${price.quantity === 1 ? 'mask' : 'masks'})</span><span>${money(price.subtotal)}</span></div><div class="summary-row savings"><span>Bundle savings</span><span>&minus;${money(price.savings)}</span></div><div class="summary-row"><span>Merchandise total</span><span>${money(price.total)}</span></div><div class="summary-row"><span>Delivery</span><span>${money(price.delivery)}</span></div><div class="summary-row total"><span>Order total</span><span>${money(price.grandTotal)}</span></div>`;
+    const freeDelivery = price.quantity > 0 && price.total > config.pricing.freeDeliveryAbove;
+    const deliveryMarkup = freeDelivery
+      ? `<span class="delivery-price"><del><span class="sr-only">Original delivery fee: </span>${money(config.pricing.deliveryFee)}</del><strong>FREE<span class="sr-only">, ${money(price.delivery)}</span></strong></span>`
+      : `<span>${money(price.delivery)}</span>`;
+    const deliveryNote = freeDelivery
+      ? `Free delivery unlocked! Your merchandise total is above ${money(config.pricing.freeDeliveryAbove)}.`
+      : `Free delivery on orders above ${money(config.pricing.freeDeliveryAbove)} after bundle savings. Applied automatically.`;
+    return `<div class="summary-row"><span>Subtotal (${price.quantity} ${price.quantity === 1 ? 'mask' : 'masks'})</span><span>${money(price.subtotal)}</span></div><div class="summary-row savings"><span>Bundle savings</span><span>&minus;${money(price.savings)}</span></div><div class="summary-row"><span>Merchandise total</span><span>${money(price.total)}</span></div><div class="summary-row${freeDelivery ? ' delivery-free' : ''}"><span>Delivery</span>${deliveryMarkup}</div><p class="delivery-offer${freeDelivery ? ' unlocked' : ''}">${deliveryNote}</p><div class="summary-row total"><span>Order total</span><span>${money(price.grandTotal)}</span></div>`;
   }
   function renderCart() {
     const price = priceCart(cart);

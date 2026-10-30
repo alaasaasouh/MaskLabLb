@@ -37,5 +37,39 @@ dialog{color:var(--white);background:#111519;border:1px solid #343b42;padding:0;
 .footer-bottom{flex-wrap:wrap}.footer-credit{display:inline-block;text-decoration:underline;text-underline-offset:3px}.footer-credit:hover,.footer-credit:focus-visible{color:var(--blue)}
 @media(max-width:600px){.footer-credit{margin-top:12px}}
 
+/* First-drop invitation and automatic delivery savings. */
+.hero{min-height:940px;height:auto;padding-bottom:100px}
+.hero-content{padding-top:145px}
+.drop-callout{max-width:510px;margin-bottom:27px;padding:0;color:var(--white)}
+.drop-headline{font:700 clamp(30px,3vw,42px)/1.1 var(--condensed);margin:0 0 9px;letter-spacing:.1px}
+.drop-headline span{color:var(--blue)}
+.drop-copy{font-size:12px;line-height:1.7;color:#e0e6eb;max-width:355px}
+.hero-delivery{display:flex;align-items:center;gap:14px;margin-top:20px;max-width:470px;padding:16px;background:#f6f7f7;color:#071019;border-left:5px solid var(--blue);pointer-events:auto;transition:background .2s}
+.hero-delivery:hover{background:#daf0ff}
+.hero-delivery>svg{color:#071019;width:21px;height:21px;margin-left:auto}
+.delivery-zero{font:700 58px/1 var(--condensed);color:#071019;flex-shrink:0;letter-spacing:-2px}
+.hero-delivery strong{display:block;color:#071019;font:700 25px/1.1 var(--condensed);letter-spacing:.3px}
+.delivery-threshold{display:block;font-size:11px;font-weight:700;margin-top:4px}
+.hero-delivery small{display:block;font-size:10px;color:#3d4b56;margin-top:5px;line-height:1.6}
+.announcement-delivery{font-weight:700}
+.delivery-banner{background:var(--blue);color:#071019;border-block:1px solid #82d0ff;padding:30px 0}
+.delivery-banner-inner{display:flex;align-items:center;gap:26px}
+.delivery-stamp{width:94px;height:94px;flex-shrink:0;border:2px dashed #071019;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;transform:rotate(-8deg);line-height:1.1}
+.delivery-stamp del{font-size:14px;text-decoration-thickness:2px}.delivery-stamp b{font:700 42px/1 var(--condensed)}.delivery-stamp small{font-size:9px;letter-spacing:1px;font-weight:700}
+.delivery-kicker{font-size:9px;letter-spacing:1.6px;font-weight:700;margin-bottom:7px}
+.delivery-banner-title{font:700 clamp(28px,2.8vw,40px)/1.1 var(--condensed)}
+.delivery-banner-title span{display:block}
+.delivery-banner-copy{font-size:11px;line-height:1.8;max-width:520px;margin-top:9px}
+.delivery-banner .button{margin-left:auto;border-color:#071019;color:#071019;white-space:nowrap;font-size:10px;gap:20px}.delivery-banner .button:hover{background:#071019;color:var(--white)}
+@media(max-width:850px){.delivery-banner-inner{flex-wrap:wrap;gap:18px}.delivery-banner-inner>div{flex:1;min-width:200px}.delivery-banner .button{margin-left:112px}}
+.delivery-free{color:#b5e3ff;align-items:center}
+.delivery-price{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+.delivery-price del{color:var(--muted);text-decoration-thickness:2px}
+.delivery-price strong{background:var(--blue);color:#071019;padding:3px 9px;font-size:11px;letter-spacing:.6px}
+.delivery-offer{font-size:11px;line-height:1.7;color:#c2cbd3;padding:11px 12px;border:1px solid #32a9f433;background:#32a9f40a;margin:12px 0 18px}
+.delivery-offer.unlocked{color:#b5e3ff;border-color:#32a9f466;background:#32a9f418}
+@media(max-width:850px){.hero{max-height:none}.hero-content{padding-top:135px}}
+@media(max-width:600px){.hero{min-height:0;padding-bottom:65px}.hero-content{padding-top:300px}.drop-callout{margin-bottom:25px}.drop-headline{font-size:30px}.drop-copy{font-size:11px;max-width:290px}.hero-cta{flex-wrap:wrap;gap:14px}.hero-cta>span{font-size:9px}.hero-delivery{padding:14px 11px;gap:11px}.delivery-zero{font-size:48px}.hero-delivery strong{font-size:24px}.delivery-threshold{font-size:10px}.hero-delivery small{font-size:10px}.hero-delivery>svg{display:none}.delivery-banner{padding:25px 0}.delivery-stamp{width:68px;height:68px}.delivery-stamp b{font-size:31px}.delivery-stamp del{font-size:11px}.delivery-stamp small{font-size:7px}.delivery-banner-inner{gap:16px}.delivery-banner-inner>div{min-width:0}.delivery-kicker{font-size:8px;letter-spacing:.7px}.delivery-banner-title{font-size:27px}.delivery-banner-copy{font-size:11px}.delivery-banner .button{margin-left:84px;white-space:normal;min-height:46px;padding:12px;font-size:9px;gap:15px}}
+
 /* Preserve readable paragraphs in merchant policies and care instructions. */
 #policy-content,.faq-list details p,#quick-care{white-space:pre-line}
