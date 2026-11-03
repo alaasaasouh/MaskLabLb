@@ -17,6 +17,8 @@ function validateOrder(body, now = Date.now()) {
   const ids = new Set();
   const cart = body.cart.map(item => {
     if (!item || !config.designs.some(d => d.id === item.id) || ids.has(item.id) || !Number.isSafeInteger(item.quantity) || item.quantity < 1 || item.quantity > 99) invalid('Check the masks and quantities in your bag.');
+    const design = config.designs.find(d => d.id === item.id);
+    if (design.available === false) invalid(`${design.name} is currently unavailable. Please remove it from your bag.`);
     ids.add(item.id);
     return { id: item.id, quantity: item.quantity };
   });
@@ -70,9 +72,21 @@ function createOrderHandler({ env = process.env, fetchImpl = fetch, now = Date.n
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store');
     res.setHeader('Vary', 'Origin');
-    const allowed = (env.ORDER_ALLOWED_ORIGINS || 'https://masklablb.vercel.app,https://alaasaasouh.github.io').split(',').map(value => value.trim()).filter(Boolean);
+    // Keep official stores enabled even when extra origins are configured.
+    // Deployment URLs come from hosting configuration, never request headers.
+    const allowed = new Set([
+      'https://www.leblab.store', 'https://leblab.store',
+      'https://masklablb.vercel.app', 'https://alaasaasouh.github.io',
+      ...[env.VERCEL_PROJECT_PRODUCTION_URL, env.VERCEL_URL].filter(Boolean).map(host => 'https://' + host),
+      ...(env.ORDER_ALLOWED_ORIGINS || '').split(',')
+    ].flatMap(value => {
+      try {
+        const url = new URL(value.trim());
+        return ['https:', 'http:'].includes(url.protocol) ? [url.origin] : [];
+      } catch { return []; }
+    }));
     const origin = req.headers.origin;
-    if (!origin || !allowed.includes(origin)) return respond(403, {error:'This checkout address is not enabled. Please use the official store or contact Masklab.'});
+    if (!origin || !allowed.has(origin)) return respond(403, {error:'This checkout address is not enabled. Please use the official store or contact Masklab.'});
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');

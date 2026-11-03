@@ -30,7 +30,7 @@ Edit `js/products.js`:
 
 - Change `whatsapp` using international digits only, without `+` or spaces.
 - Change `instagram` to the exact full Instagram URL.
-- Edit `designs[].name` for display names. Keep `id` stable to preserve saved carts.
+- Edit `designs[].name` for display names. Keep `id` stable to preserve saved carts. Set `available: false` to show a design as currently unavailable, disable ordering, remove it from saved bags and reject it in direct orders. Bark Vader is currently unavailable.
 - Replace each design’s `.webp` and `-480.webp` files in `assets/products/`, retaining the full shape and proportions. Original JPEGs are archived locally in `.local/source-assets/products/` and are not part of the repository.
 - Prices are integer US cents: `1900` means $19.00. Set `product.unitPrice` and `pricing.bundles` together.
 - Delivery is $4 (`pricing.deliveryFee: 400`), waived when the merchandise total after bundle savings is above $65 (`pricing.freeDeliveryAbove: 6500`). It is included in cart, checkout, and WhatsApp order totals.
@@ -81,7 +81,7 @@ Your video-to-website skill remains unused, as requested. There are no frame seq
    - BREVO_API_KEY: the private Brevo API key.
    - ORDER_FROM_EMAIL: the exact verified sender email.
    - ORDER_TO_EMAIL: the merchant inbox; defaults to the existing address in js/products.js if omitted.
-   - ORDER_ALLOWED_ORIGINS: optional override, comma-separated exact origins. Defaults to https://masklablb.vercel.app,https://alaasaasouh.github.io.
+   - ORDER_ALLOWED_ORIGINS: optional additional store origins, comma-separated. Official https://www.leblab.store and https://leblab.store addresses, plus the Vercel and GitHub Pages origins, remain enabled. Vercel-provided VERCEL_PROJECT_PRODUCTION_URL and VERCEL_URL are also accepted; custom domains must be included here if not supplied by those variables. URLs are normalized to their origin.
 4. Redeploy after saving environment variables. Never commit keys or paste them into browser JavaScript.
 5. Place a clearly labelled test order using your own customer email. Confirm that both emails arrive and inspect Brevo transactional logs if delivery fails.
 

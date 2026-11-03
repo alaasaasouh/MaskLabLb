@@ -24,7 +24,7 @@
       { id: 'the-last-don', name: 'The Last Don' },
       { id: 'clowbreaker', name: 'Clowbreaker' },
       { id: 'fangzilla', name: 'Fangzilla' },
-      { id: 'bark-vader', name: 'Bark Vader' },
+      { id: 'bark-vader', name: 'Bark Vader', available: false },
       { id: 'meowtrix', name: 'Meowtrix' },
       { id: 'frost-reaper', name: 'Frost Reaper' },
       { id: 'ginger-ninja', name: 'Ginger Ninja' },

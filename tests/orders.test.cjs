@@ -3,7 +3,7 @@ const {randomUUID} = require('node:crypto');
 const {createOrderHandler, validateOrder, emailPayload} = require('../server/orders.cjs');
 const now = Date.now();
 const env = {BREVO_API_KEY:'test-only-key',ORDER_FROM_EMAIL:'sender@example.com',ORDER_TO_EMAIL:'owner@example.com',ORDER_ALLOWED_ORIGINS:'https://shop.example.com,https://owner.github.io'};
-const body = () => ({requestId:randomUUID(),startedAt:now,payment:'cod',cart:[{id:'clowbreaker',quantity:1},{id:'bark-vader',quantity:2}],customer:{name:'QA & Test',email:'customer@example.com',phone:'+961 76 123 456',area:'Beirut',address:'Test street',notes:'<img src=x onerror=alert(1)>'}});
+const body = () => ({requestId:randomUUID(),startedAt:now,payment:'cod',cart:[{id:'clowbreaker',quantity:1},{id:'meowtrix',quantity:2}],customer:{name:'QA & Test',email:'customer@example.com',phone:'+961 76 123 456',area:'Beirut',address:'Test street',notes:'<img src=x onerror=alert(1)>'}});
 function invoke(handler, data, overrides = {}) {
   const req = {method:'POST',headers:{origin:'https://shop.example.com','content-type':'application/json'},body:data,socket:{remoteAddress:'127.0.0.1'},...overrides};
   return new Promise((resolve,reject) => {
@@ -27,6 +27,8 @@ function invoke(handler, data, overrides = {}) {
   assert.equal(validateOrder(sample,now).key,order.key);
   assert.notEqual(validateOrder({...sample,customer:{...sample.customer,email:'another@example.com'}},now).key,order.key);
   for (const bad of [null,{}, {...sample,cart:[]},{...sample,cart:[{id:'fake',quantity:1}]},{...sample,cart:[{id:'clowbreaker',quantity:1.5}]},{...sample,cart:[{id:'clowbreaker',quantity:100}]},{...sample,cart:[sample.cart[0],sample.cart[0]]},{...sample,customer:{...sample.customer,email:'bad'}},{...sample,customer:{...sample.customer,phone:'bad'}},{...sample,startedAt:now-11*60000},{...sample,website:'spam'},{...sample,payment:'paid'}]) assert.throws(()=>validateOrder(bad,now));
+  assert.throws(() => validateOrder({...sample,cart:[{id:'bark-vader',quantity:1}]},now), /currently unavailable/);
+  assert.throws(() => validateOrder({...sample,cart:[...sample.cart,{id:'bark-vader',quantity:1}]},now), /currently unavailable/);
   let calls = 0;
   const seen = new Set();
   const handler = createOrderHandler({env,now:()=>now,fetchImpl:async (url,options)=>{
@@ -50,6 +52,16 @@ function invoke(handler, data, overrides = {}) {
   assert.equal((await invoke(handler,'not JSON')).status,400);
   assert.equal((await invoke(handler,'x'.repeat(16001))).status,413);
   assert.equal(calls,2,'Rejected requests never send email');
+  // Extra origins cannot disable official stores; paths and trailing slashes normalize.
+  const originsHandler = createOrderHandler({env:{ORDER_ALLOWED_ORIGINS:'https://custom.example.com/' ,VERCEL_PROJECT_PRODUCTION_URL:'production.example.com',VERCEL_URL:'preview.example.com'}});
+  for (const origin of ['https://www.leblab.store','https://leblab.store','https://masklablb.vercel.app','https://alaasaasouh.github.io','https://custom.example.com','https://production.example.com','https://preview.example.com']) {
+    const response = await invoke(originsHandler,null,{method:'OPTIONS',headers:{origin}});
+    assert.equal(response.status,204,origin);
+    assert.equal(response.headers['Access-Control-Allow-Origin'],origin);
+  }
+  for (const origin of ['https://evil.example','https://www.leblab.store.evil.example','https://masklablb.vercel.app.evil.example',undefined]) {
+    assert.equal((await invoke(originsHandler,null,{method:'OPTIONS',headers:{origin}})).status,403);
+  }
   const unconfigured = createOrderHandler({env:{ORDER_ALLOWED_ORIGINS:env.ORDER_ALLOWED_ORIGINS},fetchImpl:()=>{throw Error('must not send');}});
   assert.equal((await invoke(unconfigured,sample)).status,503);
   for (const result of [{ok:false,status:401,json:async()=>({message:'secret provider detail'})},{ok:true,status:201,json:async()=>({messageIds:['only-one']})},{ok:false,status:400,json:async()=>({code:'duplicate_parameter',message:'another duplicate field'})}]) {

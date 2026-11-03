@@ -64,3 +64,5 @@ dialog{color:var(--white);background:#111519;border:1px solid #343b42;padding:0;
 
 /* Preserve readable paragraphs in merchant policies and care instructions. */
 #policy-content,.faq-list details p,#quick-care{white-space:pre-line}
+
+.add-button:disabled,.quick-buy .button:disabled{opacity:.6;cursor:not-allowed;background:transparent;color:var(--muted);border-color:var(--line)}

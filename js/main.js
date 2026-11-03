@@ -58,7 +58,7 @@
           <span class="quick-label">TAKE A CLOSER LOOK ↗</span>
         </button>
         <div class="product-info"><div><h3>${design.name}</h3><p>MASKLAB BALACLAVA</p></div><span class="price">${money(config.product.unitPrice)}</span></div>
-        <button class="add-button" data-add="${design.id}" aria-label="Order ${design.name}"><span>ORDER</span>${icon('bag')}</button>
+        <button class="add-button" data-add="${design.id}" aria-label="${design.name}${design.available === false ? ": currently unavailable" : ": order"}" ${design.available === false ? "disabled" : ""}><span>${design.available === false ? "CURRENTLY UNAVAILABLE" : "ORDER"}</span>${icon('bag')}</button>
       </article>`).join('') + `<article class="editorial-tile"><div><p class="eyebrow">11 FACES. ALL YOU.</p><h3>CAN'T<br>PICK<br>JUST ONE?</h3><p>Good. You don't have to.<br>Mix your favorites and save.</p></div><span class="tile-star" aria-hidden="true">✳</span><a class="text-link" href="#bundles">MEET THE BUNDLES ${icon('arrow')}</a></article>`;
   }
   renderProducts();
@@ -66,7 +66,7 @@
   $('#product-grid').addEventListener('click', event => {
     const add = event.target.closest('[data-add]');
     const quick = event.target.closest('[data-quick]');
-    if (add) {
+    if (add && !add.disabled) {
       addToCart(add.dataset.add, 1);
       openDialog($('#cart-drawer'), add);
       add.classList.add('added');
@@ -78,7 +78,7 @@
 
   function renderQuickView() {
     const design = config.designs.find(d => d.id === quickId);
-    $('#quick-content').innerHTML = `<div class="quick-layout"><div class="quick-image"><img src="${design.image}" width="1068" height="1472" alt="${design.name} balaclava"></div><div class="quick-info"><p class="eyebrow">YOUR NEXT PERSONALITY</p><h2 id="quick-title">${design.name}</h2><p class="quick-price">${money(config.product.unitPrice)}</p><p class="quick-subtitle">One MASKLAB balaclava. A whole new attitude. Goggles and other accessories are not included.</p><label class="design-label">CHOOSE YOUR DESIGN<select class="design-select" id="quick-design">${config.designs.map(d => `<option value="${d.id}" ${d.id === quickId ? 'selected' : ''}>${d.name}</option>`).join('')}</select></label><p class="quick-bundle">Mix any 2 for ${money(config.pricing.bundles[2])} · any 3 for ${money(config.pricing.bundles[3])}</p><div class="quick-buy"><div class="quantity-control"><button data-quick-delta="-1" aria-label="Decrease quantity" ${quickQuantity === 1 ? 'disabled' : ''}>−</button><output id="quick-quantity" aria-live="polite">${quickQuantity}</output><button data-quick-delta="1" aria-label="Increase quantity" ${quickQuantity === 99 ? 'disabled' : ''}>+</button></div><button class="button button-blue" id="quick-add">ORDER ${icon('bag')}</button></div><details><summary>Sizing & care</summary><p id="quick-care"></p></details><details><summary>Delivery & ordering</summary><p>Order on WhatsApp or place your order here with cash on delivery. Delivery is ${money(config.pricing.deliveryFee)}, with free delivery on orders above ${money(config.pricing.freeDeliveryAbove)}. Any delivery fee is included in your order total. Availability and delivery are confirmed by Masklab.</p></details></div></div>`;
+    $('#quick-content').innerHTML = `<div class="quick-layout"><div class="quick-image"><img src="${design.image}" width="1068" height="1472" alt="${design.name} balaclava"></div><div class="quick-info"><p class="eyebrow">YOUR NEXT PERSONALITY</p><h2 id="quick-title">${design.name}</h2><p class="quick-price">${money(config.product.unitPrice)}</p><p class="quick-subtitle">One MASKLAB balaclava. A whole new attitude. Goggles and other accessories are not included.</p><label class="design-label">CHOOSE YOUR DESIGN<select class="design-select" id="quick-design">${config.designs.map(d => `<option value="${d.id}" ${d.id === quickId ? 'selected' : ''}>${d.name}${d.available === false ? " - Currently unavailable" : ""}</option>`).join('')}</select></label><p class="quick-bundle">Mix any 2 for ${money(config.pricing.bundles[2])} · any 3 for ${money(config.pricing.bundles[3])}</p><div class="quick-buy"><div class="quantity-control"><button data-quick-delta="-1" aria-label="Decrease quantity" ${quickQuantity === 1 ? 'disabled' : ''}>−</button><output id="quick-quantity" aria-live="polite">${quickQuantity}</output><button data-quick-delta="1" aria-label="Increase quantity" ${quickQuantity === 99 ? 'disabled' : ''}>+</button></div><button class="button button-blue" id="quick-add" ${design.available === false ? "disabled" : ""}>${design.available === false ? "CURRENTLY UNAVAILABLE" : "ORDER"} ${icon('bag')}</button></div><details><summary>Sizing & care</summary><p id="quick-care"></p></details><details><summary>Delivery & ordering</summary><p>Order on WhatsApp or place your order here with cash on delivery. Delivery is ${money(config.pricing.deliveryFee)}, with free delivery on orders above ${money(config.pricing.freeDeliveryAbove)}. Any delivery fee is included in your order total. Availability and delivery are confirmed by Masklab.</p></details></div></div>`;
     $('#quick-care').textContent = [config.details.sizing || 'Sizing information will be available soon.', config.details.care || 'Care instructions will be available soon.'].join('\n\n');
   }
   $('#quick-content').addEventListener('change', event => {
@@ -92,7 +92,7 @@
       $('[data-quick-delta="-1"]').disabled = quickQuantity === 1;
       $('[data-quick-delta="1"]').disabled = quickQuantity === 99;
     }
-    if (event.target.closest('#quick-add')) {
+    if (event.target.closest('#quick-add') && !$('#quick-add').disabled) {
       addToCart(quickId, quickQuantity);
       closeDialog($('#quick-view'));
       openDialog($('#cart-drawer'));
@@ -108,7 +108,7 @@
   }
   function addToCart(id, quantity) {
     const design = config.designs.find(d => d.id === id);
-    if (!design) return;
+    if (!design || design.available === false) return;
     const existing = cart.find(item => item.id === id);
     const before = existing?.quantity || 0;
     if (existing) existing.quantity = Math.min(99, before + quantity);

@@ -44,6 +44,12 @@ const testOrderHandler = require('../server/orders.cjs').createOrderHandler({
   assert.equal(await evaluate('document.querySelector(".drop-headline").textContent'),'BE FIRST. STAND OUT.');
   assert.equal(await evaluate('document.querySelector("[data-add] span").textContent'),'ORDER');
   assert.equal(await evaluate('document.querySelector("#place-order").textContent.trim()'),'PLACE ORDER');
+  assert.equal(await evaluate('document.querySelector("[data-add=bark-vader]").disabled'),true);
+  assert.ok(await evaluate('document.querySelector("[data-add=bark-vader]").textContent.includes("CURRENTLY UNAVAILABLE")'));
+  await evaluate('document.querySelector("[data-quick=bark-vader]").click()');
+  assert.equal(await evaluate('document.querySelector("#quick-add").disabled'),true);
+  await evaluate('document.querySelector("#quick-add").click();document.querySelector("#quick-view").close()');
+  assert.equal(await evaluate('document.querySelector(".cart-count").textContent'),'0');
   await shot('desktop-home.png');
   await evaluate('document.querySelectorAll(".reveal").forEach(e=>e.classList.remove("waiting"));document.querySelectorAll("img").forEach(img=>{img.loading="eager"})');
   await evaluate('Promise.all([...document.images].map(i=>i.decode().catch(()=>{})))');
@@ -52,9 +58,9 @@ const testOrderHandler = require('../server/orders.cjs').createOrderHandler({
   for(let y=0;y<totalHeight;y+=750){await evaluate(`scrollTo(0,${y})`);await delay(80);}
   await evaluate('scrollTo(0,0)');await delay(300);
   await shot('desktop-full.png',true);
-  await evaluate('document.querySelector("[data-add=clowbreaker]").click();document.querySelector("[data-add=bark-vader]").click();document.querySelector("[data-open-cart]").click()');
+  await evaluate('document.querySelector("[data-add=clowbreaker]").click();document.querySelector("[data-add=meowtrix]").click();document.querySelector("[data-open-cart]").click()');
   assert.ok(await evaluate('document.querySelector("#cart-summary").textContent.includes("$35.00")'));
-  await evaluate(`document.querySelector('[data-id=bark-vader][data-delta="1"]').click()`);
+  await evaluate(`document.querySelector('[data-id=meowtrix][data-delta="1"]').click()`);
   assert.ok(await evaluate('document.querySelector("#cart-summary .total").textContent.includes("$53.00")'));
   assert.ok(await evaluate('document.querySelector("#cart-body").textContent.includes("$16.333")'));
   assert.equal(await evaluate('document.querySelector("#cart-drawer").open'),true);
@@ -72,14 +78,14 @@ const testOrderHandler = require('../server/orders.cjs').createOrderHandler({
   assert.equal(await evaluate('typeof window.testWhatsappURL'),'undefined');
   await evaluate('document.querySelector("[name=phone]").dispatchEvent(new Event("input",{bubbles:true}))');
   await evaluate(`(()=>{const f=document.querySelector('#checkout-form');const values={name:'QA & Test',phone:'+961 76 123 456',area:'Beirut',address:'Sample street',notes:'<img src=x onerror=alert(1)>'};Object.entries(values).forEach(([key,value])=>f.elements[key].value=value);window.open=(url)=>{window.testWhatsappURL=url;return null};f.requestSubmit()})()`);
-  const url=await evaluate('window.testWhatsappURL');assert.ok(url.startsWith('https://wa.me/96181374508?text='));assert.ok(decodeURIComponent(url).includes('Bark Vader × 2'));assert.ok(decodeURIComponent(url).includes('Merchandise total: $35.00'));
+  const url=await evaluate('window.testWhatsappURL');assert.ok(url.startsWith('https://wa.me/96181374508?text='));assert.ok(decodeURIComponent(url).includes('Meowtrix × 2'));assert.ok(decodeURIComponent(url).includes('Merchandise total: $35.00'));
   assert.equal(await evaluate('document.querySelector("#whatsapp-fallback").hidden'),false);
   assert.ok(!(await evaluate('JSON.stringify(localStorage)')).includes('QA & Test'));
   assert.equal(await evaluate('document.querySelector(".cart-count").textContent'),'2');
   assert.equal(await evaluate('document.querySelector("#checkout-review del")'),null);
   assert.ok(await evaluate('document.querySelector("#checkout-review .delivery-offer").textContent.includes("above $65.00")'));
   await shot('desktop-checkout.png');
-  await evaluate(`document.querySelector('#checkout-dialog').close();document.querySelector('[data-open-cart]').click();document.querySelector('[data-id=bark-vader][data-delta="1"]').click();document.querySelector('[data-id=bark-vader][data-delta="1"]').click()`);
+  await evaluate(`document.querySelector('#checkout-dialog').close();document.querySelector('[data-open-cart]').click();document.querySelector('[data-id=meowtrix][data-delta="1"]').click();document.querySelector('[data-id=meowtrix][data-delta="1"]').click()`);
   assert.ok(await evaluate('document.querySelector("#cart-summary .total").textContent.includes("$65.33")'));
   assert.equal(await evaluate('document.querySelector("#cart-summary .delivery-free del").textContent'),'Original delivery fee: $4.00');
   await evaluate('document.querySelector("#start-checkout").click()');

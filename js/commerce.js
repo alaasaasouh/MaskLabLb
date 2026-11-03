@@ -6,7 +6,7 @@
     if (!Array.isArray(value)) return [];
     const quantities = new Map();
     value.forEach(item => {
-      if (!item || !config.designs.some(d => d.id === item.id) || !Number.isSafeInteger(item.quantity) || item.quantity < 1) return;
+      if (!item || !config.designs.some(d => d.id === item.id && d.available !== false) || !Number.isSafeInteger(item.quantity) || item.quantity < 1) return;
       quantities.set(item.id, Math.min(99, (quantities.get(item.id) || 0) + item.quantity));
     });
     return [...quantities].map(([id, quantity]) => ({ id, quantity }));
