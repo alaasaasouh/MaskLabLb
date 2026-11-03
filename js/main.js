@@ -223,6 +223,7 @@
       $('#whatsapp-link').href = url;
       $('#whatsapp-fallback').hidden = false;
       window.open(url, '_blank', 'noopener,noreferrer');
+      window.MasklabAnalytics?.whatsappCheckout(priceCart(cart).grandTotal);
       return;
     }
     submitting = true;
@@ -251,6 +252,8 @@
         }
         throw new Error(result?.error || 'Online ordering is not available right now. Please order on WhatsApp.');
       }
+      // One backend acceptance represents one COD order, regardless of email count.
+      window.MasklabAnalytics?.orderCompleted(result.orderId, result.grandTotal);
       // Remove only the submitted quantities, preserving anything added in another tab.
       cart = cart.map(item => ({...item, quantity: item.quantity - (submittedCart.find(row => row.id === item.id)?.quantity || 0)}));
       persistCart();
@@ -283,7 +286,7 @@
   const policies = {
     delivery: { title: 'Delivery information', copy: config.details.delivery || `Delivery is ${money(config.pricing.deliveryFee)}, with free delivery on orders above ${money(config.pricing.freeDeliveryAbove)}. Any delivery fee is included in your order total. Enter your city and full delivery address at checkout. Coverage and timing details will be added once available.` },
     returns: { title: 'Return & Exchange Policy', copy: config.details.returns || 'Masklab’s returns and exchanges policy will be added here once provided. Please contact the team on WhatsApp to confirm the applicable conditions before ordering, or for help with an item you received.' },
-    privacy: { title: 'Privacy information', copy: config.details.privacy || 'We use Umami to measure website visits. Your bag is saved in your browser, along with an order retry identifier for the current tab. Your contact and delivery details are not saved in browser storage. Place order sends those details to our order service and email provider to notify Masklab and send your confirmation. Order details are retained in those emails and provider logs. WhatsApp orders include your details in a message you send yourself. Masklab’s full business privacy statement will be added when supplied.' },
+    privacy: { title: 'Privacy information', copy: config.details.privacy || 'We use Umami to measure website visits, placed order values and WhatsApp checkout attempts without sending your contact or delivery details to analytics. Your bag is saved in your browser, along with an order retry identifier for the current tab. Your contact and delivery details are not saved in browser storage. Place order sends those details to our order service and email provider to notify Masklab and send your confirmation. Order details are retained in those emails and provider logs. WhatsApp orders include your details in a message you send yourself. Masklab’s full business privacy statement will be added when supplied.' },
     terms: { title: 'Ordering information', copy: config.details.terms || 'Choose your designs, review your bag, and add your contact and delivery details. Choose Order on WhatsApp to send a prepared message, or Place order to submit here and receive an email confirmation. Payment is cash on delivery. Masklab confirms availability and delivery. Orders of three or more use the same per-mask rate as the three-mask bundle, with the order total rounded to cents. A submitted order request does not guarantee stock availability. Masklab’s full terms of sale will be added once supplied.' }
   };
   const faqs = [

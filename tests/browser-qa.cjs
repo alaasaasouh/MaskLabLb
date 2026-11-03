@@ -35,6 +35,9 @@ const testOrderHandler = require('../server/orders.cjs').createOrderHandler({
   async function viewport(width,height){await send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<600});}
   async function shot(name,full=false){await evaluate('document.fonts.ready');await delay(400);const r=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:full,...(full?{clip:{x:0,y:0,width:await evaluate('innerWidth'),height:await evaluate('document.documentElement.scrollHeight'),scale:1}}:{})});fs.writeFileSync(path.join(screenshotDirectory,name),Buffer.from(r.data,'base64'));}
   await send('Runtime.enable');await send('Page.enable');await send('Network.enable');
+  // Keep automated QA out of the live Umami website, including pageviews.
+  await send('Network.setBlockedURLs',{urls:['https://cloud.umami.is/*']});
+  await send('Page.addScriptToEvaluateOnNewDocument',{source:'window.analyticsEvents=[];window.umami={track:(name,data)=>{window.analyticsEvents.push({name,data});return Promise.resolve();}};'});
   await viewport(1440,1000);await send('Page.navigate',{url:'http://127.0.0.1:4173/'});await delay(1500);
   await evaluate('localStorage.clear(); location.reload()');await delay(800);
   for(let attempt=0;attempt<40;attempt++){if(await evaluate('document.querySelectorAll(".product-card").length')===11)break;await delay(150);}
@@ -116,6 +119,7 @@ const testOrderHandler = require('../server/orders.cjs').createOrderHandler({
   await evaluate(`(()=>{const f=document.querySelector('#checkout-form');const values={name:'Order QA',email:'',phone:'+961 76 123 456',area:'Beirut',address:'Sample street'};Object.entries(values).forEach(([key,value])=>f.elements[key].value=value);document.querySelector('#place-order').click()})()`);
   assert.equal(await evaluate('document.querySelector("[name=email]").validity.valid'),false);
   assert.equal(orderEmails.length,0);
+  assert.equal(await evaluate('window.analyticsEvents.filter(e=>e.name==="order-completed").length'),0);
   // WhatsApp remains usable after a missing-email validation error.
   await evaluate('document.querySelector("[value=whatsapp]").click()');
   assert.equal(await evaluate('document.querySelector("#whatsapp-fallback").hidden'),false);
@@ -125,6 +129,9 @@ const testOrderHandler = require('../server/orders.cjs').createOrderHandler({
   assert.equal(await evaluate('document.querySelector(".cart-count").textContent'),'5');
   assert.ok(await evaluate('document.querySelector("#order-status").textContent.includes("retry")'));
   assert.equal(await evaluate('document.querySelector("#checkout-fields").disabled'),false);
+  assert.equal(await evaluate('window.analyticsEvents.filter(e=>e.name==="order-completed").length'),0,'Failed orders do not track revenue');
+  assert.ok(await evaluate('window.analyticsEvents.some(e=>e.name==="whatsapp-checkout")'));
+  assert.ok(await evaluate('window.analyticsEvents.filter(e=>e.name==="whatsapp-checkout").every(e=>e.data.currency==="USD" && typeof e.data.cart_value==="number" && !("revenue" in e.data))'));
   await shot('mobile-order-error.png');
   await evaluate('window.fetch=window.originalFetch;document.querySelector("#place-order").click();document.querySelector("#place-order").click()');
   assert.equal(await evaluate('document.querySelector("#checkout-fields").disabled'),true);
@@ -136,13 +143,33 @@ const testOrderHandler = require('../server/orders.cjs').createOrderHandler({
   assert.equal(await evaluate('document.querySelector("#order-success").hidden'),false);
   assert.equal(await evaluate('document.querySelector(".cart-count").textContent'),'0');
   assert.ok(await evaluate('document.querySelector("#order-confirmation").textContent.includes("$81.67")'));
+  assert.deepEqual(await evaluate('window.analyticsEvents.filter(e=>e.name==="order-completed")'),[{name:'order-completed',data:{revenue:81.67,currency:'USD'}}]);
+  assert.deepEqual(await evaluate('window.analyticsEvents.filter(e=>e.name==="whatsapp-checkout").at(-1).data'),{cart_value:81.67,currency:'USD'});
+  assert.ok(!(await evaluate('JSON.stringify(window.analyticsEvents)')).includes('customer@example.com'));
   assert.equal(await evaluate('location.protocol'),'http:','No email app is opened');
   assert.ok(!(await evaluate('JSON.stringify(localStorage)+JSON.stringify(sessionStorage)')).includes('customer@example.com'));
   await shot('mobile-order-success.png');
   await evaluate('document.querySelector("#checkout-dialog").close()');
+  // A second successful response must use its authoritative total, not the cart's $23.
+  // Replaying that same accepted reference later must not count as another order.
+  for (let attempt=0;attempt<2;attempt++) {
+    await evaluate(`document.querySelector('[data-add=clowbreaker]').click();document.querySelector('#start-checkout').click();
+      (()=>{const f=document.querySelector('#checkout-form');const values={name:'Order QA',email:'customer@example.com',phone:'+961 76 123 456',area:'Beirut',address:'Sample street'};Object.entries(values).forEach(([key,value])=>f.elements[key].value=value);})();
+      window.fetch=async()=>new Response(JSON.stringify({ok:true,orderId:'ML-1111111111111111',grandTotal:5000}),{status:200,headers:{'Content-Type':'application/json'}});
+      document.querySelector('#place-order').click();document.querySelector('#place-order').click();`);
+    await delay(100);
+    assert.equal(await evaluate('document.querySelector("#order-success").hidden'),false);
+    await evaluate('document.querySelector("#checkout-dialog").close()');
+  }
+  assert.deepEqual(await evaluate('window.analyticsEvents.filter(e=>e.name==="order-completed")'),[
+    {name:'order-completed',data:{revenue:81.67,currency:'USD'}},
+    {name:'order-completed',data:{revenue:50,currency:'USD'}}
+  ]);
+  assert.equal(orderEmails.length,1,'Additional response mocks do not send emails');
+  await evaluate('window.fetch=window.originalFetch');
   await evaluate('document.querySelectorAll("img").forEach(img=>{img.loading="eager"})');await delay(800);
   assert.deepEqual(await evaluate('[...document.images].filter(i=>!i.complete||!i.naturalWidth).map(i=>i.src)'),[]);
   assert.deepEqual(errors,[]);assert.deepEqual(failedRequests,[]);
   console.log('PASS: desktop/mobile rendering; 11 products; mixed bundles; cart changes/removal/persistence; empty-form validation; encoded WhatsApp message; no PII storage; >3 automatic pricing; mobile menu/Escape; quick view/design switching; all images; no overflow at 320/375/390/768/1024/1440; no JS or HTTP errors.');
-  fs.writeFileSync(path.join(__dirname,'qa-result.txt'),'Passed Chromium browser QA at 320, 375, 390, 768, 1024 and 1440 px. All shopping and WhatsApp preparation checks passed. No message was sent.\n');
+  fs.writeFileSync(path.join(__dirname,'qa-result.txt'),'Passed Chromium browser QA at 320, 375, 390, 768, 1024 and 1440 px. Shopping, unavailable Bark Vader, two-recipient COD checkout and WhatsApp preparation checks passed. Analytics checks passed for failed orders, double clicks, authoritative $81.67 and $50 order values, distinct orders, duplicate success suppression and WhatsApp separation. Umami and Brevo were mocked; the live analytics script was blocked. No real emails, orders or analytics were sent. Live ingestion, email delivery, deployment and physical-device checks remain separate.\n');
 })().catch(error=>{console.error(error);process.exitCode=1;}).finally(async()=>{if(socket)socket.close();if(browser)browser.kill();if(server){server.closeAllConnections();server.close();}setTimeout(()=>process.exit(process.exitCode||0),500);});

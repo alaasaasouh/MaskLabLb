@@ -46,6 +46,37 @@ Checkout offers Order on WhatsApp or Place order. WhatsApp opens a prepared mess
 
 Only design IDs and quantities are stored in localStorage. A random retry identifier and timestamp are saved in sessionStorage. Customer details stay in page memory until submission, then go to the order service and Brevo for direct orders, or into the prepared WhatsApp URL. The browser does not store those details. Emails and provider logs retain order details; there is no separate order database or inventory system. Fonts are served locally.
 
+## Umami order-value tracking
+
+The existing Cloud tracker in `index.html` uses website ID `28388b77-4acf-432e-a7c8-64df7734cca9`. Its deferred script is in the head as recommended by [Umami's installation guide](https://docs.umami.is/docs/collect-data). No new credentials, dependencies, database, Vercel environment variables or deployment configuration are required. Confirm that this ID matches the intended website in your Umami account and that any tracker domain restrictions include `www.leblab.store` and `leblab.store`.
+
+`js/analytics.js` exposes two narrow functions used by the existing checkout in `js/main.js`:
+
+- After a validated successful `/api/order` response, `order-completed` sends `{ revenue: result.grandTotal / 100, currency: 'USD' }`. The amount comes from the server's integer-cent total, including delivery and bundle savings. The two Brevo email versions represent one order and generate one event. This is placed cash-on-delivery order value, not money collected, guaranteed email delivery, fulfilled sales or profit. Cancellations and refunds do not automatically adjust analytics.
+- After validated WhatsApp checkout opens the prepared message, `whatsapp-checkout` sends `{ cart_value: priceCart(cart).grandTotal / 100, currency: 'USD' }`. It never includes `revenue`, does not count as a purchase, and does not imply the message was sent. Repeated validated attempts may produce repeated attempt events. General contact links and the fallback message link do not generate additional checkout events.
+
+Only these numeric amounts and currency are supplied as custom event data. No customer details, credentials, WhatsApp URLs, order IDs or custom customer identity are sent. Umami still collects its standard page/session metadata. The checkout never puts contact details in the page URL.
+
+The client claims each accepted order reference in localStorage before attempting tracking, with an in-memory fallback if storage is unavailable. This suppresses repeat backend success responses in the same browser, including reloads and ordinary retries. A slow tracker gets up to 30 seconds to load without delaying checkout. Analytics errors are swallowed and ambiguous network responses are not retried.
+
+This is best-effort, at-most-once tracking per browser, not an exactly-once transaction. Ad blockers, closed pages, storage loss, simultaneous tabs, another browser or network failures can cause missing events or defeat deduplication. Claiming before sending deliberately favors missing revenue over duplicate revenue. No events are replayed after reload. There is no order database or durable analytics outbox, so guaranteed delivery and deduplication across clients would require a larger server-side design. Brevo emails remain the operational order record.
+
+Umami's [Revenue documentation](https://docs.umami.is/docs/revenue) requires the `revenue` and `currency` properties; no special purchase event name is required. Select this website, USD and the intended date range in the Revenue insight. The current [revenue query](https://github.com/umami-software/umami/blob/master/src/queries/sql/revenue/getRevenueStats.ts) and [metrics bar](https://github.com/umami-software/umami/blob/master/src/app/%28main%29/websites/%5BwebsiteId%5D/%28reports%29/revenue/RevenueMetricsBar.tsx) define:
+
+| Metric | Meaning within the selected period and filters |
+| --- | --- |
+| Total | Sum of tracked revenue amounts in the chosen currency |
+| AOV | Total divided by the number of revenue events (Orders) |
+| ARPU | Total divided by all matching tracked sessions, including those without purchases |
+| Orders | Distinct revenue event IDs; Umami does not deduplicate by our order reference |
+| Unique Customers | Distinct Umami sessions with revenue events; not a count of verified people |
+
+Umami's anonymous session identification can group or split actual people. See [metric definitions](https://docs.umami.is/docs/metric-definitions). We do not send an email, phone number or other identity to improve that estimate. These five metrics are calculated by Umami, not stored as custom counters on this website.
+
+Run `node tests/analytics.test.cjs` and `node tests/browser-qa.cjs` for safe verification. The first checks a $50 event, separate orders, retries/reloads, tracker delays/failures and blocked storage. Browser QA mocks Umami and Brevo, blocks the real analytics script, and checks failed checkout, double clicks, the server's $81.67 total, separate WhatsApp events and two email recipients. It sends no real orders, emails or analytics. Current store prices remain unchanged; $50 is a mock test value.
+
+To verify the real dashboard after deployment, coordinate one clearly marked test with the owner: use your own details and email, add one available $19 mask, enter `TEST ORDER - DO NOT FULFILL` in the note, and click Place order once. The current total is $23 including delivery. This intentionally sends real confirmation emails and records $23 of test order value, but no online payment is taken. Ask the owner to cancel the test rather than fulfill it. In browser Network tools, check for one Umami collection request with `order-completed`, `revenue: 23` and `currency: 'USD'`. In Umami, choose this website, USD and a narrow current time range, then refresh the Revenue insight: Orders should increase by one and Total by $23; AOV and ARPU depend on the other events/sessions in the filter. Verify both emails separately. Keep a record of the test value when reconciling reports. For a clean isolated test, use a separate Umami test website in a local/staging copy and a mocked email provider; do not change production prices or publish test credentials. Live Cloud ingestion and Vercel deployment are not verified by the local mocks.
+
 ## Deployment
 
 Upload only `index.html`, `style.css`, `js/`, and `assets/` to the document root of client-owned static hosting. The local `.local/releases/MASKLAB-site.zip` handover contains those deployable files. Conventional static hosts and GitHub Pages are compatible; publish only these storefront files, rather than the whole repository. Keep tests, instructions, original source assets and internal handover documents out of the public website.
