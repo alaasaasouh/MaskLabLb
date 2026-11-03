@@ -42,8 +42,8 @@ const testOrderHandler = require('../server/orders.cjs').createOrderHandler({
   assert.equal(await evaluate('document.querySelectorAll(".product-card").length'),11);
   assert.equal(await evaluate('document.fonts.check("16px Knewave")'),true);
   assert.equal(await evaluate('document.querySelector(".drop-headline").textContent'),'BE FIRST. STAND OUT.');
-  assert.equal(await evaluate('document.querySelector("[data-add] span").textContent'),'PRE-ORDER');
-  assert.equal(await evaluate('document.querySelector("#place-order").textContent.trim()'),'PLACE PRE-ORDER');
+  assert.equal(await evaluate('document.querySelector("[data-add] span").textContent'),'ORDER');
+  assert.equal(await evaluate('document.querySelector("#place-order").textContent.trim()'),'PLACE ORDER');
   await shot('desktop-home.png');
   await evaluate('document.querySelectorAll(".reveal").forEach(e=>e.classList.remove("waiting"));document.querySelectorAll("img").forEach(img=>{img.loading="eager"})');
   await evaluate('Promise.all([...document.images].map(i=>i.decode().catch(()=>{})))');
