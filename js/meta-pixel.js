@@ -1,4 +1,4 @@
-/* Advertising is opt-in. No customer form fields are passed to Meta. */
+/* Meta SDK wrapper. No customer form fields are passed to Meta. */
 (function (root) {
   function createPixel(browser, config = {}) {
     const pixelId = String(config.pixelId || '').trim();

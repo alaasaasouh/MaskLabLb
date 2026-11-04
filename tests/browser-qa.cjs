@@ -50,21 +50,10 @@ const testOrderHandler = require('../server/orders.cjs').createOrderHandler({
   for(let attempt=0;attempt<40;attempt++){if(await evaluate('document.querySelectorAll(".product-card").length')===11)break;await delay(150);}
   if(await evaluate('document.querySelectorAll(".product-card").length')!==11)console.log({errors,failedRequests,state:await evaluate('({url:location.href,title:document.title,body:document.body.innerText.slice(0,300)})')});
   assert.equal(await evaluate('document.querySelectorAll(".product-card").length'),11);
-  assert.equal(await evaluate('typeof window.fbq'),'undefined','No Meta loader before consent');
-  assert.equal(await evaluate('document.querySelector("#tracking-consent").hidden'),false);
-  await viewport(375,812);
-  await shot('mobile-tracking-consent.png');
-  assert.ok(await evaluate('document.querySelector("#tracking-consent").getBoundingClientRect().right <= innerWidth'));
-  await viewport(1440,1000);
-  await evaluate('document.querySelector("[data-tracking-choice=decline]").click();location.reload()');
-  await delay(650);
-  assert.equal(await evaluate('typeof window.fbq'),'undefined','Saved decline prevents loading after refresh');
-  assert.equal(await evaluate('document.querySelector("#tracking-consent").hidden'),true);
-  await evaluate('document.querySelector("[data-tracking-settings]").click()');
-  assert.equal(await evaluate('document.querySelector("#tracking-consent").hidden'),false);
-  await evaluate('document.querySelector("[data-tracking-choice=accept]").click()');
-  assert.equal(await evaluate('document.querySelector("#tracking-consent").hidden'),true);
-  await evaluate('document.querySelector("[data-tracking-settings]").click();document.querySelector("[data-tracking-choice=accept]").click()');
+  assert.equal(await evaluate('typeof window.fbq'),'function','Pixel starts automatically without a prompt or Console');
+  assert.equal(await evaluate('document.querySelector("#tracking-consent")'),null);
+  assert.equal(await evaluate('document.querySelector("[data-tracking-settings]")'),null);
+  assert.equal(await evaluate('localStorage.getItem("masklab-advertising-consent-v1")'),null,'No visitor consent record is invented');
   assert.equal(await evaluate('[...window.fbq.queue].filter(c=>c[0]==="init").length'),1);
   assert.equal(await evaluate('[...window.fbq.queue].filter(c=>c[2]==="PageView").length'),1);
   assert.equal(await evaluate('window.fbq.disablePushState'),true);
@@ -80,6 +69,8 @@ const testOrderHandler = require('../server/orders.cjs').createOrderHandler({
   await evaluate('new Promise((resolve,reject)=>{const script=document.createElement("script");script.src="js/meta-pixel.js?qa-duplicate";script.onload=resolve;script.onerror=reject;document.head.appendChild(script)})');
   assert.equal(await evaluate('[...window.fbq.queue].filter(c=>c[0]==="init").length'),1,'Loading integration twice does not reinitialize');
   assert.equal(await evaluate('[...window.fbq.queue].filter(c=>c[2]==="PageView").length'),3);
+  await evaluate('new Promise((resolve,reject)=>{const script=document.createElement("script");script.src="js/meta-start.js?qa-duplicate";script.onload=resolve;script.onerror=reject;document.head.appendChild(script)})');
+  assert.equal(await evaluate('[...window.fbq.queue].filter(c=>c[2]==="PageView").length'),3,'Repeated automatic startup does not duplicate PageView');
   assert.equal(await evaluate('document.fonts.check("16px Knewave")'),true);
   assert.equal(await evaluate('document.querySelector(".drop-headline").textContent'),'BE FIRST. STAND OUT.');
   assert.equal(await evaluate('document.querySelector("[data-add] span").textContent'),'ORDER');
@@ -109,8 +100,7 @@ const testOrderHandler = require('../server/orders.cjs').createOrderHandler({
   assert.equal(await evaluate('document.querySelectorAll(".cart-item").length'),1);
   assert.ok(await evaluate('document.querySelector("#cart-summary .total").textContent.includes("$39.00")'));
   await evaluate('location.reload()');await delay(650);
-  assert.equal(await evaluate('[...window.fbq.queue].filter(c=>c[2]==="PageView").length'),1,'Saved acceptance automatically tracks after refresh without Console');
-  assert.equal(await evaluate('document.querySelector("#tracking-consent").hidden'),true);
+  assert.equal(await evaluate('[...window.fbq.queue].filter(c=>c[2]==="PageView").length'),1,'Pixel automatically tracks after refresh without Console');
   for(let attempt=0;attempt<40;attempt++){if(await evaluate('document.querySelector(".cart-count")?.textContent')==='2')break;await delay(150);}
   assert.equal(await evaluate('document.querySelector(".cart-count").textContent'),'2');
   await evaluate('document.querySelector("[data-open-cart]").click(); document.querySelector("#start-checkout").click()');
@@ -213,12 +203,6 @@ const testOrderHandler = require('../server/orders.cjs').createOrderHandler({
   for (const name of ['PageView','ViewContent','AddToCart','InitiateCheckout']) assert.ok(metaEvents.some(e=>e.name===name),name);
   assert.equal(metaEvents.filter(e=>e.name==='Purchase').length,0,'Received COD requests and WhatsApp are not confirmed purchases');
   assert.ok(!JSON.stringify(metaEvents).includes('customer@example.com'));
-  await evaluate('document.querySelector("[data-tracking-settings]").click();document.querySelector("[data-tracking-choice=decline]").click()');
-  const beforeRevoked = await evaluate('window.fbq.queue.length');
-  await evaluate('document.querySelector("[data-quick=clowbreaker]").click();document.querySelector("#quick-view").close()');
-  assert.equal(await evaluate('window.fbq.queue.length'),beforeRevoked,'Revoking through the UI stops subsequent events');
-  await evaluate('location.reload()');await delay(650);
-  assert.equal(await evaluate('typeof window.fbq'),'undefined','Revocation remains effective on next visit');
-  console.log('PASS: desktop/mobile rendering; 11 products; mixed bundles; cart changes/removal/persistence; empty-form validation; encoded WhatsApp message; no PII storage; >3 automatic pricing; mobile menu/Escape; quick view/design switching; all images; no overflow at 320/375/390/768/1024/1440; no JS or HTTP errors; Meta consent UI, saved choices, automatic refresh restore, revocation, PageView, ViewContent, AddToCart, InitiateCheckout and no Purchase for order requests.');
-  fs.writeFileSync(path.join(__dirname,'qa-result.txt'),'Passed Chromium browser QA at 320, 375, 390, 768, 1024 and 1440 px. Shopping, unavailable Bark Vader, two-recipient COD checkout and WhatsApp preparation checks passed. Analytics checks passed for failed orders, double clicks, authoritative $81.67 and $50 order values, distinct orders, duplicate success suppression and WhatsApp separation. Meta consent gating, saved acceptance/decline, automatic refresh restore, footer revocation, navigation/Back, repeated URL/script deduplication, product views, cart additions and checkout events passed; no Purchase fired for order requests or WhatsApp. Umami and Brevo were mocked; Meta used a synthetic local-only ID and its live scripts/requests were blocked. No real emails, orders or analytics were sent. Live ingestion, email delivery, deployment and physical-device checks remain separate.\n');
+  console.log('PASS: desktop/mobile rendering; 11 products; mixed bundles; cart changes/removal/persistence; empty-form validation; encoded WhatsApp message; no PII storage; >3 automatic pricing; mobile menu/Escape; quick view/design switching; all images; no overflow at 320/375/390/768/1024/1440; no JS or HTTP errors; Meta automatic startup without prompt/Console, PageView, ViewContent, AddToCart, InitiateCheckout and no Purchase for order requests.');
+  fs.writeFileSync(path.join(__dirname,'qa-result.txt'),'Passed Chromium browser QA at 320, 375, 390, 768, 1024 and 1440 px. Shopping, unavailable Bark Vader, two-recipient COD checkout and WhatsApp preparation checks passed. Analytics checks passed for failed orders, double clicks, authoritative $81.67 and $50 order values, distinct orders, duplicate success suppression and WhatsApp separation. Meta automatic startup/refresh without a prompt or Console, navigation/Back, repeated URL/script deduplication, product views, cart additions and checkout events passed; no Purchase fired for order requests or WhatsApp. Umami and Brevo were mocked; Meta used a synthetic local-only ID and its live scripts/requests were blocked. No real emails, orders or analytics were sent. Live ingestion, email delivery, deployment and physical-device checks remain separate.\n');
 })().catch(error=>{console.error(error);process.exitCode=1;}).finally(async()=>{if(socket)socket.close();if(browser)browser.kill();if(server){server.closeAllConnections();server.close();}setTimeout(()=>process.exit(process.exitCode||0),500);});
