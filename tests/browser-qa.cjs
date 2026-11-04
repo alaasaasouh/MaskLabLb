@@ -54,6 +54,19 @@ const testOrderHandler = require('../server/orders.cjs').createOrderHandler({
   await evaluate('window.MasklabMetaPixel.setConsent(true);window.MasklabMetaPixel.setConsent(true)');
   assert.equal(await evaluate('[...window.fbq.queue].filter(c=>c[0]==="init").length'),1);
   assert.equal(await evaluate('[...window.fbq.queue].filter(c=>c[2]==="PageView").length'),1);
+  assert.equal(await evaluate('window.fbq.disablePushState'),true);
+  await evaluate('history.pushState({},"","/#shop");history.replaceState({},"","/#contact")');
+  assert.equal(await evaluate('[...window.fbq.queue].filter(c=>c[2]==="PageView").length'),1,'Section anchors are not pages');
+  await evaluate('history.pushState({},"","/qa-route");history.replaceState({},"","/qa-route")');
+  assert.equal(await evaluate('[...window.fbq.queue].filter(c=>c[2]==="PageView").length'),2);
+  await evaluate('history.back()');
+  for (let attempt=0;attempt<40;attempt++) { if (await evaluate('location.pathname') === '/') break; await delay(50); }
+  assert.equal(await evaluate('location.pathname'),'/');
+  assert.equal(await evaluate('[...window.fbq.queue].filter(c=>c[2]==="PageView").length'),3,'Back navigation tracks once');
+  await evaluate('history.replaceState({},"","/")');
+  await evaluate('new Promise((resolve,reject)=>{const script=document.createElement("script");script.src="js/meta-pixel.js?qa-duplicate";script.onload=resolve;script.onerror=reject;document.head.appendChild(script)})');
+  assert.equal(await evaluate('[...window.fbq.queue].filter(c=>c[0]==="init").length'),1,'Loading integration twice does not reinitialize');
+  assert.equal(await evaluate('[...window.fbq.queue].filter(c=>c[2]==="PageView").length'),3);
   assert.equal(await evaluate('document.fonts.check("16px Knewave")'),true);
   assert.equal(await evaluate('document.querySelector(".drop-headline").textContent'),'BE FIRST. STAND OUT.');
   assert.equal(await evaluate('document.querySelector("[data-add] span").textContent'),'ORDER');

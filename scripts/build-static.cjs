@@ -3,7 +3,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const root = path.join(__dirname, '..');
 const output = path.join(root, 'public');
-const pixelId = (process.env.META_PIXEL_ID || '').trim();
+const defaultConfig = require('../js/meta-config.js');
+const pixelId = (process.env.META_PIXEL_ID === undefined ? defaultConfig.pixelId : process.env.META_PIXEL_ID).trim();
 if (pixelId && !/^\d{5,20}$/.test(pixelId)) throw new Error('META_PIXEL_ID must be the numeric Pixel ID from Meta Events Manager.');
 fs.mkdirSync(output, {recursive:true});
 for (const name of ['index.html','style.css','js','assets']) {

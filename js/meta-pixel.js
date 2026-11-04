@@ -5,7 +5,8 @@
     const valid = /^\d{5,20}$/.test(pixelId);
     let consent = false;
     let initialized = false;
-    let pageViewed = false;
+    let lastPage = null;
+    let navigationInstalled = false;
     const purchases = new Set();
 
     function command(...args) {
@@ -24,6 +25,8 @@
         fbq.loaded = true;
         fbq.version = '2.0';
         fbq.queue = [];
+        // We own PageView dispatch, including History API navigation.
+        fbq.disablePushState = true;
         browser.fbq = browser._fbq = fbq;
         command('consent', 'revoke');
         command('set', 'autoConfig', false, pixelId);
@@ -33,12 +36,33 @@
         script.src = 'https://connect.facebook.net/en_US/fbevents.js';
         browser.document.head.appendChild(script);
         initialized = true;
+        installNavigation();
         return true;
       } catch { return false; } // Blocked trackers must never interrupt shopping.
     }
     function track(name, data, options) {
       if (!consent || !valid || !initialized) return false;
       return command('trackSingle', pixelId, name, data || {}, ...(options ? [options] : []));
+    }
+    function pageView() {
+      // This is a one-page storefront: #shop/#contact are scroll anchors.
+      // Treat a changed path/query as a route; repeated URLs are not new views.
+      const page = (browser.location?.pathname || '/') + (browser.location?.search || '');
+      if (page !== lastPage && track('PageView')) lastPage = page;
+    }
+    function installNavigation() {
+      if (navigationInstalled) return;
+      navigationInstalled = true;
+      browser.addEventListener?.('popstate', pageView);
+      for (const name of ['pushState', 'replaceState']) {
+        const original = browser.history?.[name];
+        if (typeof original !== 'function') continue;
+        browser.history[name] = function (...args) {
+          const result = original.apply(this, args);
+          pageView();
+          return result;
+        };
+      }
     }
     function setConsent(granted) {
       consent = granted === true;
@@ -48,7 +72,7 @@
       }
       if (!valid || !start()) return;
       command('consent', 'grant');
-      if (!pageViewed && track('PageView')) pageViewed = true;
+      pageView();
     }
     function productData(id, quantity = 1) {
       const shop = browser.MASKLAB;
