@@ -129,3 +129,44 @@ Additional checks:
 - node scripts/build-static.cjs ? build the public storefront allowlist for Vercel.
 
 References: [Brevo API keys](https://help.brevo.com/hc/en-us/articles/209467485-Create-and-manage-your-API-keys), [Brevo email API](https://developers.brevo.com/reference/send-transac-email), [batch idempotency](https://developers.brevo.com/docs/heterogenous-versions-batch-emails).
+
+## Meta Pixel audit and configuration
+
+The storefront uses HTML, CSS and vanilla JavaScript, not Next.js/React. Vercel runs `node scripts/build-static.cjs` and serves `public/`, with a separate order function. Existing analytics are Umami (pageviews plus custom `order-completed` and `whatsapp-checkout` events); Umami's website UUID is not a Meta Pixel ID. Previously there was no Meta script, Pixel ID, PageView, consent integration, or duplicate Meta initialization in the source. Public HTML checks on 4 November 2026 returned HTTP 200 for both `https://www.leblab.store` and `https://masklablb.vercel.app`, showing the existing local scripts plus Umami and no Meta snippet. Neither returned CSP or CSP Report-Only headers. No CSP is configured in `index.html` or `vercel.json`. Vercel dashboard variables, Meta dataset settings, automatic advanced matching and Event Setup Tool rules could not be inspected from this environment.
+
+No real Pixel ID was supplied. Configure it exactly here:
+
+1. In Meta Events Manager, select the intended dataset/pixel and copy its numeric Pixel ID from Settings. Do not use an ad-account ID, access token or the Umami UUID.
+2. In the existing Vercel project, open **Settings > Environment Variables**, add **`META_PIXEL_ID`** with that ID, and select **Production**. Add Preview/Development only if you want those environments tracked (prefer a separate test dataset).
+3. Redeploy after the code is deployed. The build validates and writes only this public ID to `public/js/meta-config.js`; browser JavaScript cannot read Vercel environment variables directly. `NEXT_PUBLIC_`/`VITE_` prefixes are not used by this build. Empty IDs disable Meta; malformed IDs fail the build. No secrets are included.
+4. For local testing: set the variable in ignored `.env`, run `node --env-file=.env scripts/build-static.cjs`, and serve `public/`. The root `preview.cjs` serves source, so testing a real ID there instead requires a temporary local edit to `js/meta-config.js`; do not commit test IDs.
+
+Advertising consent defaults to denied: no Meta script loads, events queue, or past shopping actions replay before consent. There is deliberately no noscript tracking image that bypasses consent. The existing site has no advertising consent UI; connect an approved consent manager to `window.MasklabMetaPixel.setConsent(true)` after explicit advertising opt-in, and `.setConsent(false)` on refusal/revocation. The consent manager must restore the saved choice on each page load and handle its own consent records. Calls must run after deferred `js/meta-pixel.js` has loaded (for example after DOMContentLoaded). Until that integration exists, Meta remains off. No policy copy, banner, or page styling has been invented or changed. Existing Umami behavior remains separate.
+
+The loader initializes once and sends one `PageView` per document after consent. It refuses to initialize over an existing `fbq`, `_fbq` or Meta loader, so remove any separate manual/GTM installation instead of combining owners. Events use `trackSingle` for the configured ID. Automatic configuration is disabled in code; also inspect Meta's Event Setup Tool rules/automatic events and advanced matching settings to prevent account-side duplicates or unintended form capture. No customer form details or advanced-matching identifiers are passed by this integration.
+
+| Event | Trigger |
+| --- | --- |
+| PageView | Once per page load after consent; hash links, sorting and cart rendering do not count as page loads. |
+| ViewContent | Opening a product's quick view or changing the selected design. Quantity-only changes do not count. |
+| AddToCart | Successful additions from grid/quick view and actual quantity increases in the bag. Unavailable items, removals and quantity limits do not fire it. Value is the added quantity at the listed price. |
+| InitiateCheckout | Opening checkout with a nonempty bag. Value includes actual bundle pricing and delivery. |
+| Purchase | Only an authoritative success with `ok: true`, `orderStatus: 'confirmed'`, valid order reference and server-calculated `grandTotal`. Deduplicated by Pixel ID/order ID, with `eventID` for future server-event deduplication. |
+
+The current endpoint confirms email-provider acceptance of an **order request**; it does not confirm availability or payment. Therefore it does not send `orderStatus: 'confirmed'`, and **Purchase intentionally never fires for current COD requests or WhatsApp clicks**. `purchaseConfirmed(result, submittedCart)` is wired at backend success for a future genuine order-confirmation response. Do not mark requests confirmed just to produce purchases. Confirmation after the visitor leaves needs a separate trusted backend/order system integration (for example Conversions API); this repository has no such confirmation source. Browser events can also be blocked or missed; they are not order records.
+
+There is no repository CSP to amend. If the live host/proxy adds one, inspect the document's response headers and browser CSP console errors. Merge `https://connect.facebook.net` into `script-src` (and `script-src-elem` if present), and `https://www.facebook.com` into `connect-src` and `img-src`; retain the site's existing allowances, including Umami. Check CSP Report-Only separately. Do not disable CSP or add broad wildcards to solve a tracking error.
+
+### Verification
+
+Run `node tests/meta-pixel.test.cjs`, `node tests/analytics.test.cjs`, `node tests/commerce.test.cjs`, `node tests/orders.test.cjs`, `node tests/browser-qa.cjs` and `node scripts/build-static.cjs`. Browser QA uses a synthetic local Pixel ID, blocks Meta and Umami network traffic, and mocks the email provider. It verifies actual shopping event hooks and no premature Purchase, without polluting live analytics.
+
+After deployment and real consent integration:
+
+1. Open **Meta Events Manager > your dataset/pixel > Test events**, then open the deployed website from the browser-testing section. Use a clean browser profile without an ad blocker, keeping Test events open.
+2. Refuse advertising consent: confirm no `fbevents.js` request or Meta events. Grant consent: expect exactly one PageView. In DevTools Network, confirm `fbevents.js` loads and Meta `/tr` requests carry the correct `id` and `ev`; investigate console CSP errors if blocked.
+3. Open/change a product, add it, increase its bag quantity, then open checkout: expect ViewContent, AddToCart and InitiateCheckout with correct product IDs, quantities, USD and values. Sort, remove an item and open an empty bag: no spurious commerce events.
+4. Prepare WhatsApp, attempt a failed order, and submit a test COD request: expect no Purchase. A future genuinely confirmed test order should produce one Purchase with the server total, and retrying the same confirmation should not produce another. Obtain owner approval before placing real orders or sending real emails.
+5. Revoke consent: later actions must stop producing events. Reload and confirm the consent manager restores the choice. Check Events Manager Diagnostics and use Meta Pixel Helper to investigate duplicate or missing events. Remove overlapping GTM snippets/Event Setup Tool rules if found.
+
+Dashboard reference: [Vercel environment variable management](https://vercel.com/docs/environment-variables/managing-environment-variables). Meta reference: [Pixel implementation](https://developers.facebook.com/docs/meta-pixel/implementation/), [Pixel event reference](https://developers.facebook.com/docs/meta-pixel/reference/), [consent controls](https://developers.facebook.com/docs/meta-pixel/implementation/gdpr/). Meta documentation retrieval was rate-limited during this audit; live Events Manager ingestion remains to be verified with the owner's ID and access.

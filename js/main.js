@@ -73,7 +73,7 @@
       add.querySelector('span').textContent = 'ADDED TO BAG ✓';
       setTimeout(() => { add.classList.remove('added'); add.querySelector('span').textContent = 'ORDER'; }, 1600);
     }
-    if (quick) { quickId = quick.dataset.quick; quickQuantity = 1; renderQuickView(); openDialog($('#quick-view'), quick); }
+    if (quick) { quickId = quick.dataset.quick; quickQuantity = 1; renderQuickView(); openDialog($('#quick-view'), quick); window.MasklabMetaPixel?.viewContent(quickId); }
   });
 
   function renderQuickView() {
@@ -82,7 +82,7 @@
     $('#quick-care').textContent = [config.details.sizing || 'Sizing information will be available soon.', config.details.care || 'Care instructions will be available soon.'].join('\n\n');
   }
   $('#quick-content').addEventListener('change', event => {
-    if (event.target.id === 'quick-design') { quickId = event.target.value; renderQuickView(); $('#quick-design').focus(); }
+    if (event.target.id === 'quick-design') { quickId = event.target.value; renderQuickView(); window.MasklabMetaPixel?.viewContent(quickId); $('#quick-design').focus(); }
   });
   $('#quick-content').addEventListener('click', event => {
     const control = event.target.closest('[data-quick-delta]');
@@ -115,6 +115,7 @@
     else cart.push({ id, quantity: Math.min(99, quantity) });
     persistCart();
     const added = Math.min(99, before + quantity) - before;
+    if (added) window.MasklabMetaPixel?.addToCart(id, added);
     notify(added ? `${design.name} added to your bag${added > 1 ? ` × ${added}` : ''}.` : 'Maximum 99 of each design. Contact Masklab for larger orders.');
   }
   function summaryMarkup(price) {
@@ -154,7 +155,11 @@
       const id = change.dataset.id;
       const delta = change.dataset.delta;
       const item = cart.find(row => row.id === id);
-      if (item) item.quantity += Number(delta);
+      if (item) {
+        const before = item.quantity;
+        item.quantity = Math.min(99, item.quantity + Number(delta));
+        if (item.quantity > before) window.MasklabMetaPixel?.addToCart(id, item.quantity - before);
+      }
       persistCart();
       const next = $(`[data-id="${id}"][data-delta="${delta}"]:not(:disabled)`) || $('.cart-drawer [data-close]');
       next.focus({ preventScroll: true });
@@ -175,6 +180,7 @@
       $('#checkout-review').innerHTML = `<p class="review-items">${pricedItems(cart).map(item => `${config.designs.find(d => d.id === item.id).name} × ${item.quantity} &mdash; ${money(item.total)}`).join('<br>')}</p>${summaryMarkup(priceCart(cart))}`;
       closeDialog($('#cart-drawer'));
       openDialog($('#checkout-dialog'));
+      window.MasklabMetaPixel?.initiateCheckout(cart);
     }
   });
   window.addEventListener('storage', event => {
@@ -254,6 +260,7 @@
       }
       // One backend acceptance represents one COD order, regardless of email count.
       window.MasklabAnalytics?.orderCompleted(result.orderId, result.grandTotal);
+      window.MasklabMetaPixel?.purchaseConfirmed(result, submittedCart);
       // Remove only the submitted quantities, preserving anything added in another tab.
       cart = cart.map(item => ({...item, quantity: item.quantity - (submittedCart.find(row => row.id === item.id)?.quantity || 0)}));
       persistCart();

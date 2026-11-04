@@ -20,7 +20,14 @@ const testOrderHandler = require('../server/orders.cjs').createOrderHandler({
   }
 });
 (async () => {
-  server = http.createServer((req,res)=>new URL(req.url,'http://localhost').pathname === '/api/order' ? testOrderHandler(req,res) : require('../preview.cjs')(req,res));
+  server = http.createServer((req,res)=>{
+    const pathname = new URL(req.url,'http://localhost').pathname;
+    if (pathname === '/js/meta-config.js') {
+      res.writeHead(200,{'Content-Type':'text/javascript'});
+      return res.end('window.MASKLAB_META={pixelId:"123456789012345"};'); // Synthetic local fixture only.
+    }
+    return pathname === '/api/order' ? testOrderHandler(req,res) : require('../preview.cjs')(req,res);
+  });
   await new Promise(r => server.listen(4173, '127.0.0.1', r));
   browser = spawn(chromePath, ['--headless=new','--no-sandbox','--disable-gpu','--remote-debugging-port=9333','--remote-allow-origins=*',`--user-data-dir=${path.join(__dirname,'.browser-profile')}`,'about:blank'], {windowsHide:true,stdio:'ignore'});
   let target;
@@ -36,13 +43,17 @@ const testOrderHandler = require('../server/orders.cjs').createOrderHandler({
   async function shot(name,full=false){await evaluate('document.fonts.ready');await delay(400);const r=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:full,...(full?{clip:{x:0,y:0,width:await evaluate('innerWidth'),height:await evaluate('document.documentElement.scrollHeight'),scale:1}}:{})});fs.writeFileSync(path.join(screenshotDirectory,name),Buffer.from(r.data,'base64'));}
   await send('Runtime.enable');await send('Page.enable');await send('Network.enable');
   // Keep automated QA out of the live Umami website, including pageviews.
-  await send('Network.setBlockedURLs',{urls:['https://cloud.umami.is/*']});
+  await send('Network.setBlockedURLs',{urls:['https://cloud.umami.is/*','https://connect.facebook.net/*','https://www.facebook.com/tr*']});
   await send('Page.addScriptToEvaluateOnNewDocument',{source:'window.analyticsEvents=[];window.umami={track:(name,data)=>{window.analyticsEvents.push({name,data});return Promise.resolve();}};'});
   await viewport(1440,1000);await send('Page.navigate',{url:'http://127.0.0.1:4173/'});await delay(1500);
   await evaluate('localStorage.clear(); location.reload()');await delay(800);
   for(let attempt=0;attempt<40;attempt++){if(await evaluate('document.querySelectorAll(".product-card").length')===11)break;await delay(150);}
   if(await evaluate('document.querySelectorAll(".product-card").length')!==11)console.log({errors,failedRequests,state:await evaluate('({url:location.href,title:document.title,body:document.body.innerText.slice(0,300)})')});
   assert.equal(await evaluate('document.querySelectorAll(".product-card").length'),11);
+  assert.equal(await evaluate('typeof window.fbq'),'undefined','No Meta loader before consent');
+  await evaluate('window.MasklabMetaPixel.setConsent(true);window.MasklabMetaPixel.setConsent(true)');
+  assert.equal(await evaluate('[...window.fbq.queue].filter(c=>c[0]==="init").length'),1);
+  assert.equal(await evaluate('[...window.fbq.queue].filter(c=>c[2]==="PageView").length'),1);
   assert.equal(await evaluate('document.fonts.check("16px Knewave")'),true);
   assert.equal(await evaluate('document.querySelector(".drop-headline").textContent'),'BE FIRST. STAND OUT.');
   assert.equal(await evaluate('document.querySelector("[data-add] span").textContent'),'ORDER');
@@ -72,6 +83,7 @@ const testOrderHandler = require('../server/orders.cjs').createOrderHandler({
   assert.equal(await evaluate('document.querySelectorAll(".cart-item").length'),1);
   assert.ok(await evaluate('document.querySelector("#cart-summary .total").textContent.includes("$39.00")'));
   await evaluate('location.reload()');await delay(650);
+  await evaluate('window.MasklabMetaPixel.setConsent(true)'); // Simulate CMP restoring consent after reload.
   for(let attempt=0;attempt<40;attempt++){if(await evaluate('document.querySelector(".cart-count")?.textContent')==='2')break;await delay(150);}
   assert.equal(await evaluate('document.querySelector(".cart-count").textContent'),'2');
   await evaluate('document.querySelector("[data-open-cart]").click(); document.querySelector("#start-checkout").click()');
@@ -170,6 +182,10 @@ const testOrderHandler = require('../server/orders.cjs').createOrderHandler({
   await evaluate('document.querySelectorAll("img").forEach(img=>{img.loading="eager"})');await delay(800);
   assert.deepEqual(await evaluate('[...document.images].filter(i=>!i.complete||!i.naturalWidth).map(i=>i.src)'),[]);
   assert.deepEqual(errors,[]);assert.deepEqual(failedRequests,[]);
-  console.log('PASS: desktop/mobile rendering; 11 products; mixed bundles; cart changes/removal/persistence; empty-form validation; encoded WhatsApp message; no PII storage; >3 automatic pricing; mobile menu/Escape; quick view/design switching; all images; no overflow at 320/375/390/768/1024/1440; no JS or HTTP errors.');
-  fs.writeFileSync(path.join(__dirname,'qa-result.txt'),'Passed Chromium browser QA at 320, 375, 390, 768, 1024 and 1440 px. Shopping, unavailable Bark Vader, two-recipient COD checkout and WhatsApp preparation checks passed. Analytics checks passed for failed orders, double clicks, authoritative $81.67 and $50 order values, distinct orders, duplicate success suppression and WhatsApp separation. Umami and Brevo were mocked; the live analytics script was blocked. No real emails, orders or analytics were sent. Live ingestion, email delivery, deployment and physical-device checks remain separate.\n');
+  const metaEvents = await evaluate('[...window.fbq.queue].filter(c=>c[0]==="trackSingle").map(c=>({name:c[2],data:c[3]}))');
+  for (const name of ['PageView','ViewContent','AddToCart','InitiateCheckout']) assert.ok(metaEvents.some(e=>e.name===name),name);
+  assert.equal(metaEvents.filter(e=>e.name==='Purchase').length,0,'Received COD requests and WhatsApp are not confirmed purchases');
+  assert.ok(!JSON.stringify(metaEvents).includes('customer@example.com'));
+  console.log('PASS: desktop/mobile rendering; 11 products; mixed bundles; cart changes/removal/persistence; empty-form validation; encoded WhatsApp message; no PII storage; >3 automatic pricing; mobile menu/Escape; quick view/design switching; all images; no overflow at 320/375/390/768/1024/1440; no JS or HTTP errors; Meta consent, PageView, ViewContent, AddToCart, InitiateCheckout and no Purchase for order requests.');
+  fs.writeFileSync(path.join(__dirname,'qa-result.txt'),'Passed Chromium browser QA at 320, 375, 390, 768, 1024 and 1440 px. Shopping, unavailable Bark Vader, two-recipient COD checkout and WhatsApp preparation checks passed. Analytics checks passed for failed orders, double clicks, authoritative $81.67 and $50 order values, distinct orders, duplicate success suppression and WhatsApp separation. Meta consent gating, single initialization/PageView, product views, cart additions and checkout events passed; no Purchase fired for order requests or WhatsApp. Umami and Brevo were mocked; Meta used a synthetic local-only ID and its live scripts/requests were blocked. No real emails, orders or analytics were sent. Live ingestion, email delivery, deployment and physical-device checks remain separate.\n');
 })().catch(error=>{console.error(error);process.exitCode=1;}).finally(async()=>{if(socket)socket.close();if(browser)browser.kill();if(server){server.closeAllConnections();server.close();}setTimeout(()=>process.exit(process.exitCode||0),500);});
